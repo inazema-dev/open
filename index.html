@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>봉사활동 신청판</title>
+<title>공개 봉사 신청</title>
 
 <!-- ============================================================= -->
 <!--  FIREBASE 설정: 아래 값만 채우면 실시간 공유 + 명단 저장이 켜집니다.        -->
@@ -184,6 +184,18 @@
     padding:10px;font-size:11px;color:var(--ink);word-break:break-all;font-family:monospace;}
 
   .foot{margin-top:24px;color:var(--muted);font-size:11.5px;line-height:1.7;text-align:center;}
+  .mroster{margin-top:18px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;}
+  .mr-head{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+  .mr-num{font-size:12px;font-weight:700;color:#fff;background:var(--primary);border-radius:999px;padding:2px 9px;}
+  .mr-empty{font-size:13px;color:var(--muted);padding:4px 0;}
+  .mr-list{display:flex;flex-direction:column;}
+  .mr-item{display:flex;align-items:baseline;gap:10px;padding:8px 4px;border-top:1px solid var(--line);}
+  .mr-item:first-child{border-top:none;}
+  .mr-name{font-size:14px;font-weight:600;color:var(--ink);min-width:72px;flex-shrink:0;}
+  .mr-days{font-size:12.5px;color:var(--muted);line-height:1.5;}
+  .mr-item.me{background:var(--primary-soft);border-radius:8px;margin:0 -6px;padding-left:10px;padding-right:10px;}
+  .mr-item.me .mr-name{color:var(--primary-d);}
+  @media(min-width:640px){ .mr-name{min-width:96px;} }
   .foot code{background:var(--surface-2);border:1px solid var(--line);padding:1px 5px;border-radius:4px;color:var(--primary);}
 </style>
 </head>
@@ -193,7 +205,7 @@
 <div class="gate on" id="login">
   <div class="card">
     <div class="hidden-admin" id="adminZone" aria-hidden="true"></div>
-    <div class="glogo">봉사활동 신청판</div>
+    <div class="glogo">공개 봉사 신청</div>
     <div class="notice" id="loginNotice" style="display:none">
       <div class="ntitle">공지사항</div>
       <div class="ntext" id="loginNoticeText"></div>
@@ -247,7 +259,7 @@
 <!-- ===== 앱 ===== -->
 <header>
   <div class="wrap-h">
-    <div class="marquee"><span class="dot"></span>봉사활동 신청판</div>
+    <div class="marquee"><span class="dot"></span>공개 봉사 신청</div>
     <div class="sub">봉사 요일: 수 · 금 · 토 · 일 · 날짜를 눌러 신청하세요</div>
     <div class="modebar">
       <span class="pill demo" id="modePill">연결 중…</span>
@@ -276,6 +288,7 @@
       <span class="sun">일</span><span class="dim">월</span><span class="dim">화</span><span>수</span><span class="dim">목</span><span>금</span><span class="sat">토</span>
     </div>
     <div class="cal" id="cal"></div>
+    <div class="mroster" id="mRoster"></div>
     <div class="foot"></div>
   </div>
 </div>
@@ -465,6 +478,47 @@ function dayList(dateKey,weekday){
   const once=(state.dateData[dateKey]||[]).map(s=>({...s,_fixed:false}));
   return [...fx,...once];
 }
+/* 이번 달 전체 지원자 집계 (가나다순) */
+function monthRoster(){
+  const ref=state.monthRef;
+  const mo=ref.getMonth();
+  const prefix=`${ref.getFullYear()}-${String(mo+1).padStart(2,"0")}-`;
+  const map={};
+  const ensure=n=>{ if(!map[n]) map[n]={fixed:new Set(),once:new Set()}; return map[n]; };
+  // 매주 고정 신청 (활성 요일만)
+  Object.keys(state.fixedData||{}).forEach(wdStr=>{
+    const wd=+wdStr; if(!ACTIVE_WD.has(wd)) return;
+    (state.fixedData[wd]||[]).forEach(s=>ensure(s.name).fixed.add(wd));
+  });
+  // 특정 날짜 신청 (이번 달, 활성 요일만)
+  Object.keys(state.dateData||{}).forEach(key=>{
+    if(!key.startsWith(prefix)) return;
+    const wd=new Date(key+"T00:00:00").getDay();
+    if(!ACTIVE_WD.has(wd)) return;
+    const day=+key.split("-")[2];
+    (state.dateData[key]||[]).forEach(s=>ensure(s.name).once.add(day));
+  });
+  return Object.keys(map).sort((a,b)=>a.localeCompare(b,"ko")).map(n=>{
+    const fixed=[...map[n].fixed].sort((a,b)=>a-b).map(w=>`매주 ${WD[w]}`);
+    const once=[...map[n].once].sort((a,b)=>a-b).map(d=>`${mo+1}/${d}`);
+    return {name:n, parts:[...fixed,...once]};
+  });
+}
+function renderMonthRoster(){
+  const el=$("mRoster"); if(!el) return;
+  const rows=monthRoster();
+  const myName=state.me?state.me.name:null;
+  if(!rows.length){
+    el.innerHTML=`<div class="mr-head">이번 달 지원자</div><div class="mr-empty">아직 신청자가 없어요.</div>`;
+    return;
+  }
+  el.innerHTML=`<div class="mr-head">이번 달 지원자 <span class="mr-num">${rows.length}명</span></div>`+
+    `<div class="mr-list">`+rows.map(r=>`
+      <div class="mr-item${r.name===myName?" me":""}">
+        <span class="mr-name">${esc(r.name)}</span>
+        <span class="mr-days">${r.parts.map(esc).join(", ")}</span>
+      </div>`).join("")+`</div>`;
+}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 const canRemove=(row)=>state.isAdmin||(state.me&&row.name===state.me.name);
 
@@ -592,12 +646,11 @@ function render(){
     el.className=`cell${inMonth?"":" out"}${inMonth&&!active?" off":""}${hol?" hol":""}`+
       `${usable&&key===todayKey?" today":""}${wd===6?" sat":""}${wd===0?" sun":""}`;
     if(usable){el.dataset.key=key;el.dataset.wd=wd;
-      const mini=list.slice(0,2).map(s=>`<b class="${s._fixed?"fx":""}${s.name===myName?" me":""}">${esc(s.name)}</b>`).join("");
-      const more=list.length>2?`<span class="more">+${list.length-2}</span>`:"";
-      el.innerHTML=`<div class="dn">${d.getDate()}</div>`+holHtml+(list.length?`<div class="cnt">${list.length}명</div>`:"")+`<div class="mini">${mini}${more}</div>`;
+      el.innerHTML=`<div class="dn">${d.getDate()}</div>`+holHtml+(list.length?`<div class="cnt">${list.length}명</div>`:"");
     }else{ el.innerHTML=`<div class="dn">${d.getDate()}</div>`+holHtml; }
     cal.appendChild(el);
   });
+  renderMonthRoster();
   if(state.openDayKey) refreshDaySheet();
 }
 
