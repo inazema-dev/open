@@ -98,6 +98,7 @@
   .cell.off{background:var(--surface-2);border-color:transparent;cursor:default;pointer-events:none;}
   .cell.off .dn{color:#aeb7c2;font-weight:500;}
   .cell.today{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary) inset;background:var(--primary-soft);}
+  .cell.sel{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary) inset;}
   .cell .dn{font-size:13px;font-weight:700;color:var(--ink);line-height:1;}
   .cell.sat .dn{color:var(--primary);} .cell.sun .dn{color:var(--rose);}
   .cell.hol .dn{color:var(--rose);}
@@ -120,17 +121,20 @@
     display:none;align-items:flex-end;justify-content:center;z-index:50;}
   .scrim.on{display:flex;} @media(min-width:560px){.scrim.on{align-items:center;}}
   .daycard{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:0 1px 3px rgba(31,42,58,.05);}
-  .dc-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+  .daypanel{margin-top:18px;}
+  .dp-empty{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px 16px;text-align:center;color:var(--muted);font-size:13.5px;}
+  .dp-title{font-size:15px;font-weight:800;color:var(--ink);margin-bottom:10px;}
   .dc-head{display:flex;align-items:center;gap:12px;min-width:0;}
   .dc-ico{width:46px;height:46px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
   .dc-ico svg{width:42px;height:42px;}
   .dc-name{font-size:18px;font-weight:800;color:var(--primary-d);letter-spacing:-.3px;}
   .dc-count{font-size:13px;color:var(--muted);margin-top:3px;}
-  .dc-apply{flex-shrink:0;font-family:inherit;font-size:15px;font-weight:700;color:#fff;background:var(--primary);
-    border:none;border-radius:10px;padding:11px 18px;cursor:pointer;transition:.12s;}
-  .dc-apply:active{transform:scale(.97);}
-  .dc-names{display:flex;flex-wrap:wrap;gap:7px;margin-top:15px;padding-top:14px;border-top:1px solid var(--line);}
+  .dc-names{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);}
   .dc-names .none{font-size:13px;color:var(--muted);}
+  .dc-foot{display:flex;justify-content:flex-end;margin-top:14px;}
+  .dc-apply{flex-shrink:0;font-family:inherit;font-size:15px;font-weight:700;color:#fff;background:var(--primary);
+    border:none;border-radius:10px;padding:11px 20px;cursor:pointer;transition:.12s;}
+  .dc-apply:active{transform:scale(.97);}
   .dchip{display:inline-flex;align-items:center;gap:5px;font-size:13.5px;font-weight:600;color:var(--ink);
     background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:6px 11px;}
   .dchip.mine{background:var(--primary-soft);border-color:var(--primary);color:var(--primary-d);}
@@ -373,32 +377,12 @@
       <span class="sun">일</span><span class="dim">월</span><span class="dim">화</span><span>수</span><span class="dim">목</span><span>금</span><span class="sat">토</span>
     </div>
     <div class="cal" id="cal"></div>
-    <div class="mroster" id="mRoster"></div>
+    <div class="daypanel" id="dayPanel"></div>
     <div class="foot"></div>
   </div>
 </div>
 
 <!-- day sheet -->
-<div class="scrim" id="dayScrim">
-  <div class="sheet">
-    <h3 id="dTitle">일정</h3>
-    <div class="daycard">
-      <div class="dc-top">
-        <div class="dc-head">
-          <span class="dc-ico" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none" stroke="#4a6da7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="23" cy="20" r="8"/><path d="M11 50v-5a12 12 0 0 1 24 0v5"/><circle cx="44" cy="23" r="6.5"/><path d="M37 50v-4a10 10 0 0 1 19-3"/></svg></span>
-          <div class="dc-meta">
-            <div class="dc-name">공개 봉사</div>
-            <div class="dc-count" id="dWhen">0명 신청</div>
-          </div>
-        </div>
-        <button class="dc-apply" id="dAdd">신청하기</button>
-      </div>
-      <div class="dc-names" id="dList"></div>
-    </div>
-    <div class="actions"><button class="ghost" id="dClose" style="flex:1">닫기</button></div>
-  </div>
-</div>
-
 <!-- 신청 입력 -->
 <div class="scrim" id="addScrim">
   <div class="sheet">
@@ -432,7 +416,7 @@
     <h3>봉사보고</h3>
     <div class="when" id="rpWhen"></div>
     <label>봉사 시간</label>
-    <input type="text" id="rpHours" placeholder="예) 10시간 · 보조 파이오니아" maxlength="40" autocomplete="off" />
+    <input type="text" id="rpHours" placeholder="예) 15 또는 했음" maxlength="40" autocomplete="off" />
     <label style="margin-top:10px">연구 건수</label>
     <input type="text" id="rpStudies" inputmode="numeric" placeholder="예) 2" maxlength="20" autocomplete="off" />
     <div class="err" id="rpErr"></div>
@@ -517,7 +501,7 @@ const state={
   monthRef:new Date(), dateData:{}, fixedData:{},
   roster:{members:[],notice:"",activeDays:DEFAULT_ACTIVE.slice()},
   reports:{}, reportsReady:false, reportChecked:false, reportMonth:null, adminRptMonth:null, adminCancelMonth:null,
-  me:null, isAdmin:false,
+  me:null, isAdmin:false, selectedDay:null,
   mode:"demo", openDayKey:null, openDayWd:null, add:{dateKey:null,weekday:null,kind:"once"},
 };
 const todayKey=ymd(new Date());
@@ -665,7 +649,10 @@ function enterApp(){
   $("ubName").textContent=state.isAdmin&&!state.me?"관리자":(state.me?state.me.name:"");
   $("ubAdm").style.display=state.isAdmin?"inline":"none";
   $("ubAdmin").style.display=state.isAdmin?"inline":"none";
-  backend.subscribeMonth(state.monthRef,render); render();
+  backend.subscribeMonth(state.monthRef,render);
+  const tw=new Date().getDay();
+  state.selectedDay = isActiveWd(tw) ? {key:todayKey, wd:tw} : null;
+  render();
   state.reportChecked=false; checkReportPopup();
 }
 function doLoginMember(){
@@ -936,47 +923,57 @@ function render(){
     const list=usable?dayList(key,wd):[];
     const el=document.createElement("div");
     el.className=`cell${inMonth?"":" out"}${inMonth&&!active?" off":""}${hol?" hol":""}`+
-      `${usable&&key===todayKey?" today":""}${wd===6?" sat":""}${wd===0?" sun":""}`;
+      `${usable&&key===todayKey?" today":""}${usable&&state.selectedDay&&key===state.selectedDay.key?" sel":""}${wd===6?" sat":""}${wd===0?" sun":""}`;
     if(usable){el.dataset.key=key;el.dataset.wd=wd;
       el.innerHTML=`<div class="dn">${d.getDate()}</div>`+holHtml+(list.length?`<div class="cnt">${list.length}명</div>`:"");
     }else{ el.innerHTML=`<div class="dn">${d.getDate()}</div>`+holHtml; }
     cal.appendChild(el);
   });
-  renderMonthRoster();
+  renderDayPanel();
   if(state.isAdmin && $("admin").classList.contains("on")) renderCancelMgr();
-  if(state.openDayKey) refreshDaySheet();
 }
 
-/* ---------------- day sheet ---------------- */
+/* ---------------- 선택 날짜 패널 ---------------- */
 $("cal").addEventListener("click",e=>{
   const cell=e.target.closest(".cell"); if(!cell||!cell.dataset.key) return;
-  openDay(cell.dataset.key,+cell.dataset.wd);
+  state.selectedDay={key:cell.dataset.key, wd:+cell.dataset.wd};
+  render();
+  $("dayPanel").scrollIntoView({behavior:"smooth",block:"nearest"});
 });
-function openDay(dateKey,weekday){
-  state.openDayKey=dateKey; state.openDayWd=weekday;
-  const [,m,dd]=dateKey.split("-");
-  const hol=HOLIDAYS[dateKey];
-  $("dTitle").textContent=`${+m}/${+dd}일 일정`+(hol?` · ${hol}`:"");
-  refreshDaySheet(); $("dayScrim").classList.add("on");
-}
-function refreshDaySheet(){
-  const list=dayList(state.openDayKey,state.openDayWd);
-  const myName=state.me?state.me.name:null;
-  $("dWhen").textContent=`${list.length}명 신청`;
-  $("dList").innerHTML=list.length?list.map((s,i)=>{
+function renderDayPanel(){
+  const box=$("dayPanel"); if(!box) return;
+  const sel=state.selectedDay;
+  if(!sel){ box.innerHTML=`<div class="dp-empty">달력에서 봉사 날짜를 선택하세요.</div>`; return; }
+  const {key,wd}=sel; const [,m,dd]=key.split("-"); const hol=HOLIDAYS[key];
+  const list=dayList(key,wd); const myName=state.me?state.me.name:null;
+  const chips=list.length?list.map((s,i)=>{
     const rm=canRemove(s);
     const cls=`dchip${s.name===myName?" mine":""}${s._fixed?" fx":""}${rm?" rm":""}`;
     return `<span class="${cls}"${rm?` data-idx="${i}"`:""}>${esc(s.name)}${s._fixed?'<em>매주</em>':''}${rm?'<i>×</i>':''}</span>`;
   }).join(""):`<div class="none">아직 신청이 없어요. 첫 번째로 올려보세요.</div>`;
+  box.innerHTML=`
+    <div class="dp-title">${+m}/${+dd}일 일정${hol?` · ${esc(hol)}`:""}</div>
+    <div class="daycard">
+      <div class="dc-head">
+        <span class="dc-ico" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none" stroke="#4a6da7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="23" cy="20" r="8"/><path d="M11 50v-5a12 12 0 0 1 24 0v5"/><circle cx="44" cy="23" r="6.5"/><path d="M37 50v-4a10 10 0 0 1 19-3"/></svg></span>
+        <div class="dc-meta">
+          <div class="dc-name">공개 봉사</div>
+          <div class="dc-count">${list.length}명 신청</div>
+        </div>
+      </div>
+      <div class="dc-names" id="dList">${chips}</div>
+      <div class="dc-foot"><button class="dc-apply" id="dAdd">신청하기</button></div>
+    </div>`;
 }
-$("dClose").onclick=()=>{$("dayScrim").classList.remove("on");state.openDayKey=null;};
-$("dayScrim").onclick=e=>{if(e.target===$("dayScrim")){$("dayScrim").classList.remove("on");state.openDayKey=null;}};
-$("dAdd").onclick=()=>openAdd(state.openDayKey,state.openDayWd);
-$("dList").addEventListener("click",e=>{const b=e.target.closest(".dchip.rm");if(!b)return;openDel(state.openDayKey,state.openDayWd,+b.dataset.idx);});
+$("dayPanel").addEventListener("click",e=>{
+  if(e.target.closest("#dAdd")){ if(state.selectedDay) openAdd(state.selectedDay.key,state.selectedDay.wd); return; }
+  const chip=e.target.closest(".dchip.rm");
+  if(chip && state.selectedDay) openDel(state.selectedDay.key,state.selectedDay.wd,+chip.dataset.idx);
+});
 
 /* ---------------- 신청 ---------------- */
 function openAdd(dateKey,weekday){
-  if(!state.me){ $("dayScrim").classList.remove("on"); return; }
+  if(!state.me){ return; }
   state.add={dateKey,weekday,kind:"once"};
   const [,m,dd]=dateKey.split("-");
   $("aWhen").textContent=`${+m}월 ${+dd}일 (${WD[weekday]}요일)`;
@@ -1028,10 +1025,11 @@ function pulseCell(dateKey){
   setTimeout(()=>cell.classList.remove("pulse"),900);
 }
 function go(month){state.monthRef=new Date(state.monthRef.getFullYear(),state.monthRef.getMonth()+month,1);
+  state.selectedDay=null;
   backend.subscribeMonth(state.monthRef,render); render();}
 $("prev").onclick=()=>go(-1);
 $("next").onclick=()=>go(1);
-$("today").onclick=()=>{state.monthRef=new Date();backend.subscribeMonth(state.monthRef,render);render();};
+$("today").onclick=()=>{state.monthRef=new Date();state.selectedDay=null;backend.subscribeMonth(state.monthRef,render);render();};
 
 /* ---------------- 부팅 ---------------- */
 (async function boot(){
