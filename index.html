@@ -596,43 +596,6 @@ function dayList(dateKey,weekday){
   return [...fx,...once];
 }
 /* 이번 달 전체 지원자 집계 (가나다순) */
-function monthRoster(){
-  const ref=state.monthRef;
-  const mo=ref.getMonth();
-  const prefix=`${ref.getFullYear()}-${String(mo+1).padStart(2,"0")}-`;
-  const map={};
-  const ensure=n=>{ if(!map[n]) map[n]={fixed:new Set(),once:new Set()}; return map[n]; };
-  // 매주 고정 신청 (활성 요일만)
-  Object.keys(state.fixedData||{}).forEach(wdStr=>{
-    const wd=+wdStr; if(!isActiveWd(wd)) return;
-    (state.fixedData[wd]||[]).forEach(s=>ensure(s.name).fixed.add(wd));
-  });
-  // 특정 날짜 신청 (이번 달, 활성 요일만)
-  Object.keys(state.dateData||{}).forEach(key=>{
-    if(!key.startsWith(prefix)) return;
-    const wd=new Date(key+"T00:00:00").getDay();
-    if(!isActiveWd(wd)) return;
-    const day=+key.split("-")[2];
-    (state.dateData[key]||[]).forEach(s=>ensure(s.name).once.add(day));
-  });
-  return Object.keys(map).sort((a,b)=>a.localeCompare(b,"ko")).map(n=>{
-    const fixed=[...map[n].fixed].sort((a,b)=>a-b).map(w=>`매주 ${WD[w]}`);
-    const once=[...map[n].once].sort((a,b)=>a-b).map(d=>`${mo+1}/${d}`);
-    return {name:n, parts:[...fixed,...once]};
-  });
-}
-function renderMonthRoster(){
-  const el=$("mRoster"); if(!el) return;
-  const rows=monthRoster();
-  const myName=state.me?state.me.name:null;
-  if(!rows.length){
-    el.innerHTML=`<div class="mr-head">이번 달 지원자</div><div class="mr-empty">아직 신청자가 없어요.</div>`;
-    return;
-  }
-  el.innerHTML=`<div class="mr-head">이번 달 지원자 <span class="mr-num">${rows.length}명</span></div>`+
-    `<div class="mr-names">`+rows.map(r=>
-      `<span class="mr-chip${r.name===myName?" me":""}">${esc(r.name)}</span>`).join("")+`</div>`;
-}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 const canRemove=(row)=>state.isAdmin||(state.me&&row.name===state.me.name);
 
