@@ -119,6 +119,25 @@
   .scrim{position:fixed;inset:0;background:rgba(31,42,58,.5);backdrop-filter:blur(2px);
     display:none;align-items:flex-end;justify-content:center;z-index:50;}
   .scrim.on{display:flex;} @media(min-width:560px){.scrim.on{align-items:center;}}
+  .daycard{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:0 1px 3px rgba(31,42,58,.05);}
+  .dc-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+  .dc-head{display:flex;align-items:center;gap:12px;min-width:0;}
+  .dc-ico{width:46px;height:46px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+  .dc-ico svg{width:42px;height:42px;}
+  .dc-name{font-size:18px;font-weight:800;color:var(--primary-d);letter-spacing:-.3px;}
+  .dc-count{font-size:13px;color:var(--muted);margin-top:3px;}
+  .dc-apply{flex-shrink:0;font-family:inherit;font-size:15px;font-weight:700;color:#fff;background:var(--primary);
+    border:none;border-radius:10px;padding:11px 18px;cursor:pointer;transition:.12s;}
+  .dc-apply:active{transform:scale(.97);}
+  .dc-names{display:flex;flex-wrap:wrap;gap:7px;margin-top:15px;padding-top:14px;border-top:1px solid var(--line);}
+  .dc-names .none{font-size:13px;color:var(--muted);}
+  .dchip{display:inline-flex;align-items:center;gap:5px;font-size:13.5px;font-weight:600;color:var(--ink);
+    background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:6px 11px;}
+  .dchip.mine{background:var(--primary-soft);border-color:var(--primary);color:var(--primary-d);}
+  .dchip.rm{cursor:pointer;} .dchip.rm:hover{border-color:var(--rose);}
+  .dchip em{font-style:normal;font-size:10.5px;color:var(--muted);font-weight:600;}
+  .dchip i{font-style:normal;color:var(--rose);font-weight:700;font-size:14px;line-height:1;}
+  .dchip.mine i{color:var(--primary-d);}
   .sheet{background:var(--surface);border:1px solid var(--line);border-radius:16px 16px 0 0;width:100%;
     max-width:440px;padding:20px 18px 26px;box-shadow:0 -8px 40px rgba(31,58,82,.18);animation:up .22s ease;
     max-height:86vh;overflow-y:auto;}
@@ -362,10 +381,20 @@
 <!-- day sheet -->
 <div class="scrim" id="dayScrim">
   <div class="sheet">
-    <h3 id="dTitle">날짜</h3>
-    <div class="when" id="dWhen"></div>
-    <div class="list" id="dList"></div>
-    <button class="addbig" id="dAdd">+ 이 날 신청하기</button>
+    <h3 id="dTitle">일정</h3>
+    <div class="daycard">
+      <div class="dc-top">
+        <div class="dc-head">
+          <span class="dc-ico" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none" stroke="#4a6da7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="23" cy="20" r="8"/><path d="M11 50v-5a12 12 0 0 1 24 0v5"/><circle cx="44" cy="23" r="6.5"/><path d="M37 50v-4a10 10 0 0 1 19-3"/></svg></span>
+          <div class="dc-meta">
+            <div class="dc-name">공개 봉사</div>
+            <div class="dc-count" id="dWhen">0명 신청</div>
+          </div>
+        </div>
+        <button class="dc-apply" id="dAdd">신청하기</button>
+      </div>
+      <div class="dc-names" id="dList"></div>
+    </div>
     <div class="actions"><button class="ghost" id="dClose" style="flex:1">닫기</button></div>
   </div>
 </div>
@@ -927,24 +956,23 @@ function openDay(dateKey,weekday){
   state.openDayKey=dateKey; state.openDayWd=weekday;
   const [,m,dd]=dateKey.split("-");
   const hol=HOLIDAYS[dateKey];
-  $("dTitle").textContent=`${+m}월 ${+dd}일 (${WD[weekday]})`+(hol?` · ${hol}`:"");
+  $("dTitle").textContent=`${+m}/${+dd}일 일정`+(hol?` · ${hol}`:"");
   refreshDaySheet(); $("dayScrim").classList.add("on");
 }
 function refreshDaySheet(){
   const list=dayList(state.openDayKey,state.openDayWd);
   const myName=state.me?state.me.name:null;
-  $("dWhen").textContent=`신청 ${list.length}명`;
-  $("dList").innerHTML=list.length?list.map((s,i)=>`
-    <div class="row${s._fixed?" fx":""}${s.name===myName?" mine":""}">
-      <span class="who">${esc(s.name)}</span>
-      ${s._fixed?'<span class="tag">매주 고정</span>':''}
-      ${canRemove(s)?`<button class="x" data-idx="${i}" aria-label="취소">×</button>`:''}
-    </div>`).join(""):`<div class="none">아직 신청이 없어요. 첫 번째로 올려보세요.</div>`;
+  $("dWhen").textContent=`${list.length}명 신청`;
+  $("dList").innerHTML=list.length?list.map((s,i)=>{
+    const rm=canRemove(s);
+    const cls=`dchip${s.name===myName?" mine":""}${s._fixed?" fx":""}${rm?" rm":""}`;
+    return `<span class="${cls}"${rm?` data-idx="${i}"`:""}>${esc(s.name)}${s._fixed?'<em>매주</em>':''}${rm?'<i>×</i>':''}</span>`;
+  }).join(""):`<div class="none">아직 신청이 없어요. 첫 번째로 올려보세요.</div>`;
 }
 $("dClose").onclick=()=>{$("dayScrim").classList.remove("on");state.openDayKey=null;};
 $("dayScrim").onclick=e=>{if(e.target===$("dayScrim")){$("dayScrim").classList.remove("on");state.openDayKey=null;}};
 $("dAdd").onclick=()=>openAdd(state.openDayKey,state.openDayWd);
-$("dList").addEventListener("click",e=>{const b=e.target.closest(".x");if(!b)return;openDel(state.openDayKey,state.openDayWd,+b.dataset.idx);});
+$("dList").addEventListener("click",e=>{const b=e.target.closest(".dchip.rm");if(!b)return;openDel(state.openDayKey,state.openDayWd,+b.dataset.idx);});
 
 /* ---------------- 신청 ---------------- */
 function openAdd(dateKey,weekday){
