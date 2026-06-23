@@ -125,13 +125,13 @@
   .dp-empty{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px 16px;text-align:center;color:var(--muted);font-size:13.5px;}
   .dp-title{font-size:15px;font-weight:800;color:var(--ink);margin-bottom:10px;}
   .dc-head{display:flex;align-items:center;gap:12px;min-width:0;}
+  .dc-top{display:flex;align-items:center;justify-content:space-between;gap:12px;}
   .dc-ico{width:46px;height:46px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
   .dc-ico svg{width:42px;height:42px;}
   .dc-name{font-size:18px;font-weight:800;color:var(--primary-d);letter-spacing:-.3px;}
   .dc-count{font-size:13px;color:var(--muted);margin-top:3px;}
   .dc-names{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);}
   .dc-names .none{font-size:13px;color:var(--muted);}
-  .dc-foot{display:flex;justify-content:flex-end;margin-top:14px;}
   .dc-apply{flex-shrink:0;font-family:inherit;font-size:15px;font-weight:700;color:#fff;background:var(--primary);
     border:none;border-radius:10px;padding:11px 20px;cursor:pointer;transition:.12s;}
   .dc-apply:active{transform:scale(.97);}
@@ -232,6 +232,7 @@
   .rpv b{color:var(--ink);font-weight:700;}
   .rprow.miss .rpv{color:var(--rose);}
   #confirmScrim{z-index:120;}
+  #cfPinRow{margin-top:6px;} #cfPinRow label{display:block;margin-bottom:6px;}
   .cxgroup{padding:9px 4px;border-top:1px solid var(--line);}
   .cxgroup:first-of-type{border-top:none;}
   .cxtop{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px;}
@@ -432,6 +433,11 @@
   <div class="sheet">
     <h3 id="cfTitle">확인</h3>
     <div class="when" id="cfMsg"></div>
+    <div id="cfPinRow" style="display:none">
+      <label>관리자 비밀번호</label>
+      <input type="password" id="cfPin" inputmode="numeric" maxlength="40" autocomplete="off" placeholder="비밀번호 입력" />
+    </div>
+    <div class="err" id="cfErr"></div>
     <div class="actions">
       <button class="ghost" id="cfNo">아니요</button>
       <button class="go" id="cfYes" style="background:var(--rose)">확인</button>
@@ -709,19 +715,32 @@ $("rpGo").onclick=async()=>{
 $("rpPrev").onclick=()=>{ state.adminRptMonth=shiftMonth(state.adminRptMonth||reportTargetMonth(),-1); renderReports(); };
 $("rpNext").onclick=()=>{ state.adminRptMonth=shiftMonth(state.adminRptMonth||reportTargetMonth(),1); renderReports(); };
 /* ---------------- 공통 확인 모달 ---------------- */
-let _confirmResolve=null;
-function appConfirm(msg, yesLabel){
-  return new Promise(res=>{
-    _confirmResolve=res;
-    $("cfMsg").textContent=msg;
-    $("cfYes").textContent=yesLabel||"확인";
-    $("confirmScrim").classList.add("on");
-  });
+let _confirmResolve=null, _confirmNeedPin=false;
+function appConfirm(msg, opts){
+  if(typeof opts==="string") opts={yesLabel:opts};
+  opts=opts||{};
+  _confirmNeedPin=!!opts.requirePin;
+  $("cfMsg").textContent=msg;
+  $("cfYes").textContent=opts.yesLabel||"확인";
+  $("cfPinRow").style.display=_confirmNeedPin?"":"none";
+  $("cfPin").value=""; $("cfErr").textContent="";
+  $("confirmScrim").classList.add("on");
+  if(_confirmNeedPin) setTimeout(()=>$("cfPin").focus(),60);
+  return new Promise(res=>{ _confirmResolve=res; });
 }
-function _closeConfirm(v){ $("confirmScrim").classList.remove("on"); const r=_confirmResolve; _confirmResolve=null; if(r) r(v); }
-$("cfYes").onclick=()=>_closeConfirm(true);
-$("cfNo").onclick=()=>_closeConfirm(false);
-$("confirmScrim").onclick=e=>{ if(e.target===$("confirmScrim")) _closeConfirm(false); };
+function _settleConfirm(v){ $("confirmScrim").classList.remove("on"); const r=_confirmResolve; _confirmResolve=null; if(r) r(v); }
+$("cfYes").onclick=async()=>{
+  if(_confirmNeedPin){
+    const pin=$("cfPin").value.trim();
+    if(!pin){ $("cfErr").textContent="관리자 비밀번호를 입력해주세요."; return; }
+    const h=await sha256(pin+ADMIN_SALT);
+    if(h!==ADMIN_PIN_HASH){ $("cfErr").textContent="비밀번호가 일치하지 않습니다."; $("cfPin").value=""; $("cfPin").focus(); return; }
+  }
+  _settleConfirm(true);
+};
+$("cfNo").onclick=()=>_settleConfirm(false);
+$("confirmScrim").onclick=e=>{ if(e.target===$("confirmScrim")) _settleConfirm(false); };
+$("cfPin").addEventListener("keydown",e=>{ if(e.key==="Enter") $("cfYes").click(); });
 
 /* ---------------- 관리자 신청 취소 ---------------- */
 function cancelRows(month){
@@ -777,12 +796,12 @@ $("cancelList").addEventListener("click",async e=>{
   const allBtn=e.target.closest(".cxall");
   if(chip){
     const g=groups[+chip.dataset.g]; const it=g&&g.items[+chip.dataset.i]; if(!it) return;
-    if(!await appConfirm(`${g.name} 님의 "${it.when}" 신청을 취소할까요?`,"취소합니다")) return;
+    if(!await appConfirm(`${g.name} 님의 "${it.when}" 신청을 취소할까요?`,{yesLabel:"취소합니다",requirePin:true})) return;
     try{ await _removeOne(it); }catch(err){ console.error(err); alert("취소에 실패했어요."); }
     renderCancelMgr();
   }else if(allBtn){
     const g=groups[+allBtn.dataset.g]; if(!g) return;
-    if(!await appConfirm(`${g.name} 님의 신청 ${g.items.length}건을 모두 취소할까요?`,"전체 취소")) return;
+    if(!await appConfirm(`${g.name} 님의 신청 ${g.items.length}건을 모두 취소할까요?`,{yesLabel:"전체 취소",requirePin:true})) return;
     for(const it of g.items){ try{ await _removeOne(it); }catch(err){ console.error(err); } }
     renderCancelMgr();
   }
@@ -917,15 +936,17 @@ function renderDayPanel(){
   box.innerHTML=`
     <div class="dp-title">${+m}/${+dd}일 일정${hol?` · ${esc(hol)}`:""}</div>
     <div class="daycard">
-      <div class="dc-head">
-        <span class="dc-ico" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none" stroke="#4a6da7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="23" cy="20" r="8"/><path d="M11 50v-5a12 12 0 0 1 24 0v5"/><circle cx="44" cy="23" r="6.5"/><path d="M37 50v-4a10 10 0 0 1 19-3"/></svg></span>
-        <div class="dc-meta">
-          <div class="dc-name">공개 봉사</div>
-          <div class="dc-count">${list.length}명 신청</div>
+      <div class="dc-top">
+        <div class="dc-head">
+          <span class="dc-ico" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none" stroke="#4a6da7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="23" cy="20" r="8"/><path d="M11 50v-5a12 12 0 0 1 24 0v5"/><circle cx="44" cy="23" r="6.5"/><path d="M37 50v-4a10 10 0 0 1 19-3"/></svg></span>
+          <div class="dc-meta">
+            <div class="dc-name">공개 봉사</div>
+            <div class="dc-count">${list.length}명 신청</div>
+          </div>
         </div>
+        <button class="dc-apply" id="dAdd">신청하기</button>
       </div>
       <div class="dc-names" id="dList">${chips}</div>
-      <div class="dc-foot"><button class="dc-apply" id="dAdd">신청하기</button></div>
     </div>`;
 }
 $("dayPanel").addEventListener("click",e=>{
