@@ -189,6 +189,18 @@
   .mr-num{font-size:12px;font-weight:700;color:#fff;background:var(--primary);border-radius:999px;padding:2px 9px;}
   .mr-empty{font-size:13px;color:var(--muted);padding:4px 0;}
   .mr-list{display:flex;flex-direction:column;}
+  .wdtoggle{display:flex;gap:6px;flex-wrap:wrap;}
+  .wdbtn{flex:1;min-width:38px;padding:10px 0;border-radius:8px;border:1px solid var(--line);
+    background:var(--surface-2);color:var(--muted);font-family:inherit;font-size:14px;font-weight:600;
+    cursor:pointer;transition:.12s;}
+  .wdbtn.sun{color:var(--rose);} .wdbtn.sat{color:var(--primary);}
+  .wdbtn.on{background:var(--primary);border-color:var(--primary);color:#fff;}
+  .wdbtn.on.sun,.wdbtn.on.sat{color:#fff;}
+  .wdbtn:active{transform:scale(.96);}
+  .mr-names{display:flex;flex-wrap:wrap;gap:6px;}
+  .mr-chip{font-size:13px;font-weight:600;color:var(--ink);background:var(--surface-2);
+    border:1px solid var(--line);border-radius:7px;padding:5px 10px;line-height:1;}
+  .mr-chip.me{background:var(--primary-soft);border-color:var(--primary);color:var(--primary-d);}
   .mr-item{display:flex;align-items:baseline;gap:10px;padding:8px 4px;border-top:1px solid var(--line);}
   .mr-item:first-child{border-top:none;}
   .mr-name{font-size:14px;font-weight:600;color:var(--ink);min-width:72px;flex-shrink:0;}
@@ -238,6 +250,11 @@
     <button class="addbig" id="noticeSave" style="margin-top:8px">공지 저장</button>
     <div class="err" id="noticeMsg"></div>
     <hr/>
+    <label>봉사 요일 설정 (신청 가능한 요일)</label>
+    <p class="ghint" style="margin:0 0 8px">켜진 요일만 달력에서 신청할 수 있어요. 누르면 바로 저장됩니다.</p>
+    <div class="wdtoggle" id="wdToggle"></div>
+    <div class="err" id="wdMsg"></div>
+    <hr/>
     <label>봉사자 추가</label>
     <div class="addmember">
       <input type="text" id="amName" placeholder="이름" maxlength="20" />
@@ -260,7 +277,7 @@
 <header>
   <div class="wrap-h">
     <div class="marquee"><span class="dot"></span>공개 봉사 신청</div>
-    <div class="sub">봉사 요일: 수 · 금 · 토 · 일 · 날짜를 눌러 신청하세요</div>
+    <div class="sub" id="subDays">봉사 요일을 불러오는 중…</div>
     <div class="modebar">
       <span class="pill demo" id="modePill">연결 중…</span>
       <span id="modeText">상태를 확인하고 있어요.</span>
@@ -345,7 +362,9 @@
      meta/roster         -> { members:[{name}], notice }   (관리자 비밀번호는 저장 안 함)
    ========================================================================= */
 const WD=["일","월","화","수","목","금","토"];
-const ACTIVE_WD=new Set([0,3,5,6]);        // 봉사 요일: 일0 수3 금5 토6
+const DEFAULT_ACTIVE=[0,3,5,6];            // 기본 봉사 요일: 일0 수3 금5 토6
+function activeDays(){const a=state.roster&&state.roster.activeDays;return Array.isArray(a)?a:DEFAULT_ACTIVE;}
+function isActiveWd(wd){return activeDays().includes(wd);}
 /* 대한민국 공휴일 (대체공휴일 포함). 음력 명절은 매년 양력 날짜가 바뀌므로
    해가 바뀌면 아래에 그 해 날짜를 추가하세요. 형식: "YYYY-MM-DD":"이름" */
 const HOLIDAYS={
@@ -394,7 +413,7 @@ function monthGrid(ref){
 
 const state={
   monthRef:new Date(), dateData:{}, fixedData:{},
-  roster:{members:[],notice:""},
+  roster:{members:[],notice:"",activeDays:DEFAULT_ACTIVE.slice()},
   me:null, isAdmin:false,
   mode:"demo", openDayKey:null, openDayWd:null, add:{dateKey:null,weekday:null,kind:"once"},
 };
@@ -438,8 +457,8 @@ function makeLive(fs,db){
   }
   function subscribeRoster(onChange){
     return onSnapshot(doc(db,"meta","roster"),snap=>{
-      if(snap.exists()){const d=snap.data();state.roster={members:d.members||[],notice:d.notice||""};}
-      else state.roster={members:[],notice:""};
+      if(snap.exists()){const d=snap.data();state.roster={members:d.members||[],notice:d.notice||"",activeDays:Array.isArray(d.activeDays)?d.activeDays:DEFAULT_ACTIVE.slice()};}
+      else state.roster={members:[],notice:"",activeDays:DEFAULT_ACTIVE.slice()};
       onChange&&onChange();
     });
   }
@@ -457,7 +476,7 @@ function makeDemo(){
   const k=(i)=>{const d=new Date(mon);d.setDate(d.getDate()+i);return ymd(d);};
   const dates={[k(3)]:[{name:"김봉사",ts:1}],[k(5)]:[{name:"이도움",ts:2},{name:"박나눔",ts:3}]};
   const fixed={6:[{name:"최주말",ts:4}]};
-  let roster={members:[{name:"김봉사"},{name:"이도움"},{name:"박나눔"},{name:"최주말"}],notice:"이번 주 토요일 봉사는 오전 9시에 모입니다.\n우천 시 실내에서 진행합니다."};
+  let roster={members:[{name:"김봉사"},{name:"이도움"},{name:"박나눔"},{name:"최주말"}],notice:"이번 주 토요일 봉사는 오전 9시에 모입니다.\n우천 시 실내에서 진행합니다.",activeDays:DEFAULT_ACTIVE.slice()};
   let cbM=()=>{},cbR=()=>{};
   const pushM=()=>{state.dateData=JSON.parse(JSON.stringify(dates));state.fixedData=JSON.parse(JSON.stringify(fixed));cbM();};
   const pushR=()=>{state.roster=JSON.parse(JSON.stringify(roster));cbR();};
@@ -487,14 +506,14 @@ function monthRoster(){
   const ensure=n=>{ if(!map[n]) map[n]={fixed:new Set(),once:new Set()}; return map[n]; };
   // 매주 고정 신청 (활성 요일만)
   Object.keys(state.fixedData||{}).forEach(wdStr=>{
-    const wd=+wdStr; if(!ACTIVE_WD.has(wd)) return;
+    const wd=+wdStr; if(!isActiveWd(wd)) return;
     (state.fixedData[wd]||[]).forEach(s=>ensure(s.name).fixed.add(wd));
   });
   // 특정 날짜 신청 (이번 달, 활성 요일만)
   Object.keys(state.dateData||{}).forEach(key=>{
     if(!key.startsWith(prefix)) return;
     const wd=new Date(key+"T00:00:00").getDay();
-    if(!ACTIVE_WD.has(wd)) return;
+    if(!isActiveWd(wd)) return;
     const day=+key.split("-")[2];
     (state.dateData[key]||[]).forEach(s=>ensure(s.name).once.add(day));
   });
@@ -513,11 +532,8 @@ function renderMonthRoster(){
     return;
   }
   el.innerHTML=`<div class="mr-head">이번 달 지원자 <span class="mr-num">${rows.length}명</span></div>`+
-    `<div class="mr-list">`+rows.map(r=>`
-      <div class="mr-item${r.name===myName?" me":""}">
-        <span class="mr-name">${esc(r.name)}</span>
-        <span class="mr-days">${r.parts.map(esc).join(", ")}</span>
-      </div>`).join("")+`</div>`;
+    `<div class="mr-names">`+rows.map(r=>
+      `<span class="mr-chip${r.name===myName?" me":""}">${esc(r.name)}</span>`).join("")+`</div>`;
 }
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 const canRemove=(row)=>state.isAdmin||(state.me&&row.name===state.me.name);
@@ -575,7 +591,7 @@ $("ubLogout").onclick=logout;
 $("ubAdmin").onclick=()=>{ if(state.isAdmin) openAdminPanel(); };
 
 /* ---------------- 관리자 패널 ---------------- */
-function metaDoc(over){return Object.assign({members:state.roster.members||[],notice:state.roster.notice||""},over||{});}
+function metaDoc(over){return Object.assign({members:state.roster.members||[],notice:state.roster.notice||"",activeDays:activeDays()},over||{});}
 function updateLoginNotice(){
   const n=(state.roster.notice||"").trim();
   if(n){$("loginNoticeText").textContent=n;$("loginNotice").style.display="";}
@@ -595,11 +611,30 @@ $("noticeSave").onclick=async()=>{
   }catch(e){$("noticeMsg").textContent="저장 실패. 다시 시도해주세요.";console.error(e);}
 };
 function renderRoster(){
+  renderWdToggle();
   const ms=state.roster.members||[];
   $("mlist").innerHTML = ms.length
     ? ms.map((m,i)=>`<div class="mrow"><span class="mn">${esc(m.name)}</span><button class="x" data-i="${i}">삭제</button></div>`).join("")
     : `<div class="none">등록된 이름이 없어요. 위에서 추가하세요.</div>`;
 }
+function renderWdToggle(){
+  const box=$("wdToggle"); if(!box) return;
+  const act=activeDays();
+  box.innerHTML=WD.map((label,wd)=>{
+    const on=act.includes(wd), cls=wd===0?"sun":wd===6?"sat":"";
+    return `<button class="wdbtn ${cls}${on?" on":""}" data-wd="${wd}">${label}</button>`;
+  }).join("");
+}
+$("wdToggle").addEventListener("click",async e=>{
+  const b=e.target.closest(".wdbtn"); if(!b) return;
+  const wd=+b.dataset.wd;
+  let act=activeDays().slice();
+  act = act.includes(wd) ? act.filter(x=>x!==wd) : [...act,wd];
+  act.sort((a,b)=>a-b);
+  $("wdMsg").style.color="var(--rose)"; $("wdMsg").textContent="";
+  try{ await backend.saveRoster(metaDoc({activeDays:act})); }
+  catch(err){ $("wdMsg").textContent="저장 실패. 다시 시도해주세요."; console.error(err); }
+});
 $("amAdd").onclick=async()=>{
   const name=$("amName").value.trim();
   if(!name){$("amErr").textContent="이름을 입력해주세요.";return;}
@@ -634,11 +669,17 @@ function setMode(kind){
 function render(){
   const ref=state.monthRef;
   $("mTitle").textContent=`${ref.getFullYear()}년 ${ref.getMonth()+1}월`;
+  const sd=$("subDays");
+  if(sd){
+    const labels=activeDays().slice().sort((a,b)=>a-b).map(w=>WD[w]);
+    sd.textContent = labels.length ? `봉사 요일: ${labels.join(" · ")} · 날짜를 눌러 신청하세요`
+                                   : "신청 가능한 봉사 요일이 없습니다. 관리자에게 문의하세요.";
+  }
   const {cells}=monthGrid(ref); const cal=$("cal"); cal.innerHTML="";
   const myName=state.me?state.me.name:null;
   cells.forEach(d=>{
     const key=ymd(d), wd=wdIndex(d), inMonth=d.getMonth()===ref.getMonth();
-    const active=ACTIVE_WD.has(wd), usable=inMonth&&active;
+    const active=isActiveWd(wd), usable=inMonth&&active;
     const hol=inMonth?HOLIDAYS[key]:null;
     const holHtml=hol?`<div class="holname">${esc(hol)}</div>`:"";
     const list=usable?dayList(key,wd):[];
@@ -752,6 +793,7 @@ $("today").onclick=()=>{state.monthRef=new Date();backend.subscribeMonth(state.m
   let restored=false;
   backend.subscribeRoster(()=>{
     updateLoginNotice();
+    render();
     if(state.isAdmin && $("admin").classList.contains("on")) renderRoster();
     if(!restored){
       restored=true;
