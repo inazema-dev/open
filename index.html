@@ -99,6 +99,15 @@
   .cell.off .dn{color:#aeb7c2;font-weight:500;}
   .cell.today{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary) inset;background:var(--primary-soft);}
   .cell.sel{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary) inset;}
+  .evname{font-size:10px;font-weight:700;color:#fff;background:var(--primary);border-radius:5px;
+    padding:1px 5px;margin-top:3px;line-height:1.4;display:inline-block;max-width:100%;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .dp-event{background:var(--primary-soft);border:1px solid var(--primary);color:var(--primary-d);
+    border-radius:10px;padding:9px 12px;font-size:13.5px;font-weight:600;margin-bottom:10px;}
+  .noteform{display:flex;gap:6px;flex-wrap:wrap;}
+  .noteform input[type=date]{flex:0 0 auto;}
+  .noteform input[type=text]{flex:1;min-width:120px;}
+  .noteform button{flex:0 0 auto;}
   .cell .dn{font-size:13px;font-weight:700;color:var(--ink);line-height:1;}
   .cell.sat .dn{color:var(--primary);} .cell.sun .dn{color:var(--rose);}
   .cell.hol .dn{color:var(--rose);}
@@ -311,6 +320,16 @@
     <div class="wdtoggle" id="wdToggle"></div>
     <div class="err" id="wdMsg"></div>
     <hr/>
+    <label>행사 메모 표시</label>
+    <p class="ghint" style="margin:0 0 8px">특정 날짜에 문구를 적으면 달력에 표시돼요. (예: 특별 집회)</p>
+    <div class="noteform">
+      <input type="date" id="noteDate" />
+      <input type="text" id="noteText" placeholder="행사/메모 (예: 특별 집회)" maxlength="30" />
+      <button id="noteAdd">저장</button>
+    </div>
+    <div class="err" id="noteMsg"></div>
+    <div class="notelist" id="noteList"></div>
+    <hr/>
     <label>봉사자 추가</label>
     <div class="addmember">
       <input type="text" id="amName" placeholder="이름" maxlength="20" />
@@ -505,7 +524,7 @@ function monthGrid(ref){
 
 const state={
   monthRef:new Date(), dateData:{}, fixedData:{},
-  roster:{members:[],notice:"",activeDays:DEFAULT_ACTIVE.slice()},
+  roster:{members:[],notice:"",activeDays:DEFAULT_ACTIVE.slice(),dayNotes:{}},
   reports:{}, reportsReady:false, reportChecked:false, reportMonth:null, adminRptMonth:null, adminCancelMonth:null,
   me:null, isAdmin:false, selectedDay:null,
   mode:"demo", openDayKey:null, openDayWd:null, add:{dateKey:null,weekday:null,kind:"once"},
@@ -550,8 +569,8 @@ function makeLive(fs,db){
   }
   function subscribeRoster(onChange){
     return onSnapshot(doc(db,"meta","roster"),snap=>{
-      if(snap.exists()){const d=snap.data();state.roster={members:d.members||[],notice:d.notice||"",activeDays:Array.isArray(d.activeDays)?d.activeDays:DEFAULT_ACTIVE.slice()};}
-      else state.roster={members:[],notice:"",activeDays:DEFAULT_ACTIVE.slice()};
+      if(snap.exists()){const d=snap.data();state.roster={members:d.members||[],notice:d.notice||"",activeDays:Array.isArray(d.activeDays)?d.activeDays:DEFAULT_ACTIVE.slice(),dayNotes:d.dayNotes||{}};}
+      else state.roster={members:[],notice:"",activeDays:DEFAULT_ACTIVE.slice(),dayNotes:{}};
       onChange&&onChange();
     });
   }
@@ -576,7 +595,7 @@ function makeDemo(){
   const k=(i)=>{const d=new Date(mon);d.setDate(d.getDate()+i);return ymd(d);};
   const dates={[k(3)]:[{name:"김봉사",ts:1}],[k(5)]:[{name:"이도움",ts:2},{name:"박나눔",ts:3}]};
   const fixed={6:[{name:"최주말",ts:4}]};
-  let roster={members:[{name:"김봉사"},{name:"이도움"},{name:"박나눔"},{name:"최주말"}],notice:"이번 주 토요일 봉사는 오전 9시에 모입니다.\n우천 시 실내에서 진행합니다.",activeDays:DEFAULT_ACTIVE.slice()};
+  let roster={members:[{name:"김봉사"},{name:"이도움"},{name:"박나눔"},{name:"최주말"}],notice:"이번 주 토요일 봉사는 오전 9시에 모입니다.\n우천 시 실내에서 진행합니다.",activeDays:DEFAULT_ACTIVE.slice(),dayNotes:{}};
   let reports={};
   let cbM=()=>{},cbR=()=>{},cbRep=()=>{};
   const pushM=()=>{state.dateData=JSON.parse(JSON.stringify(dates));state.fixedData=JSON.parse(JSON.stringify(fixed));cbM();};
@@ -662,7 +681,7 @@ $("ubLogout").onclick=logout;
 $("ubAdmin").onclick=()=>{ if(state.isAdmin) openAdminPanel(); };
 
 /* ---------------- 관리자 패널 ---------------- */
-function metaDoc(over){return Object.assign({members:state.roster.members||[],notice:state.roster.notice||"",activeDays:activeDays()},over||{});}
+function metaDoc(over){return Object.assign({members:state.roster.members||[],notice:state.roster.notice||"",activeDays:activeDays(),dayNotes:state.roster.dayNotes||{}},over||{});}
 function updateLoginNotice(){
   const n=(state.roster.notice||"").trim();
   if(n){$("loginNoticeText").textContent=n;$("loginNotice").style.display="";}
@@ -838,11 +857,35 @@ $("noticeSave").onclick=async()=>{
 };
 function renderRoster(){
   renderWdToggle();
+  renderDayNotes();
   const ms=state.roster.members||[];
   $("mlist").innerHTML = ms.length
     ? ms.map((m,i)=>`<div class="mrow"><span class="mn">${esc(m.name)}</span><button class="x" data-i="${i}">삭제</button></div>`).join("")
     : `<div class="none">등록된 이름이 없어요. 위에서 추가하세요.</div>`;
 }
+function renderDayNotes(){
+  const box=$("noteList"); if(!box) return;
+  const notes=state.roster.dayNotes||{};
+  const keys=Object.keys(notes).sort();
+  box.innerHTML = keys.length
+    ? keys.map(k=>{const [y,m,dd]=k.split("-");return `<div class="mrow"><span class="mn"><b>${+m}/${+dd}</b> · ${esc(notes[k])}</span><button class="x" data-key="${k}">삭제</button></div>`;}).join("")
+    : `<div class="none">등록된 행사 메모가 없어요.</div>`;
+}
+$("noteAdd").onclick=async()=>{
+  const date=$("noteDate").value, text=$("noteText").value.trim();
+  $("noteMsg").style.color="var(--rose)"; $("noteMsg").textContent="";
+  if(!date){ $("noteMsg").textContent="날짜를 선택해주세요."; return; }
+  if(!text){ $("noteMsg").textContent="표시할 문구를 입력해주세요."; return; }
+  const notes=Object.assign({},state.roster.dayNotes||{}); notes[date]=text;
+  try{ await backend.saveRoster(metaDoc({dayNotes:notes})); $("noteText").value=""; $("noteDate").value=""; }
+  catch(err){ $("noteMsg").textContent="저장 실패. 다시 시도해주세요."; console.error(err); }
+};
+$("noteList").addEventListener("click",async e=>{
+  const b=e.target.closest(".x"); if(!b) return;
+  const notes=Object.assign({},state.roster.dayNotes||{}); delete notes[b.dataset.key];
+  try{ await backend.saveRoster(metaDoc({dayNotes:notes})); }
+  catch(err){ console.error(err); alert("삭제에 실패했어요."); }
+});
 function renderWdToggle(){
   const box=$("wdToggle"); if(!box) return;
   const act=activeDays();
@@ -908,13 +951,15 @@ function render(){
     const active=isActiveWd(wd), usable=inMonth&&active;
     const hol=inMonth?HOLIDAYS[key]:null;
     const holHtml=hol?`<div class="holname">${esc(hol)}</div>`:"";
+    const note=inMonth&&state.roster.dayNotes?state.roster.dayNotes[key]:null;
+    const noteHtml=note?`<div class="evname">${esc(note)}</div>`:"";
     const list=usable?dayList(key,wd):[];
     const el=document.createElement("div");
     el.className=`cell${inMonth?"":" out"}${inMonth&&!active?" off":""}${hol?" hol":""}`+
       `${usable&&key===todayKey?" today":""}${usable&&state.selectedDay&&key===state.selectedDay.key?" sel":""}${wd===6?" sat":""}${wd===0?" sun":""}`;
     if(usable){el.dataset.key=key;el.dataset.wd=wd;
-      el.innerHTML=`<div class="dn">${d.getDate()}</div>`+holHtml+(list.length?`<div class="cnt">${list.length}명</div>`:"");
-    }else{ el.innerHTML=`<div class="dn">${d.getDate()}</div>`+holHtml; }
+      el.innerHTML=`<div class="dn">${d.getDate()}</div>`+holHtml+noteHtml+(list.length?`<div class="cnt">${list.length}명</div>`:"");
+    }else{ el.innerHTML=`<div class="dn">${d.getDate()}</div>`+holHtml+noteHtml; }
     cal.appendChild(el);
   });
   renderDayPanel();
@@ -933,6 +978,7 @@ function renderDayPanel(){
   const sel=state.selectedDay;
   if(!sel){ box.innerHTML=`<div class="dp-empty">달력에서 봉사 날짜를 선택하세요.</div>`; return; }
   const {key,wd}=sel; const [,m,dd]=key.split("-"); const hol=HOLIDAYS[key];
+  const note=state.roster.dayNotes?state.roster.dayNotes[key]:null;
   const list=dayList(key,wd); const myName=state.me?state.me.name:null;
   const chips=list.length?list.map((s,i)=>{
     const rm=canRemove(s);
@@ -941,6 +987,7 @@ function renderDayPanel(){
   }).join(""):`<div class="none">아직 신청이 없어요. 첫 번째로 올려보세요.</div>`;
   box.innerHTML=`
     <div class="dp-title">${+m}/${+dd}일 일정${hol?` · ${esc(hol)}`:""}</div>
+    ${note?`<div class="dp-event">📌 ${esc(note)}</div>`:""}
     <div class="daycard">
       <div class="dc-top">
         <div class="dc-head">
