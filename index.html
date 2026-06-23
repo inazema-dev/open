@@ -198,6 +198,30 @@
   .mr-empty{font-size:13px;color:var(--muted);padding:4px 0;}
   .mr-list{display:flex;flex-direction:column;}
   .wdtoggle{display:flex;gap:6px;flex-wrap:wrap;}
+  .rpnav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
+  .rpml{font-size:14px;font-weight:700;color:var(--ink);}
+  .rplist{display:flex;flex-direction:column;}
+  .rpsum{font-size:12.5px;color:var(--muted);margin-bottom:6px;}
+  .rprow{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:8px 4px;border-top:1px solid var(--line);}
+  .rprow:first-of-type{border-top:none;}
+  .rpn{font-size:14px;font-weight:600;color:var(--ink);}
+  .rpv{font-size:12.5px;color:var(--muted);text-align:right;}
+  .rpv b{color:var(--ink);font-weight:700;}
+  .rprow.miss .rpv{color:var(--rose);}
+  #confirmScrim{z-index:120;}
+  .cxgroup{padding:9px 4px;border-top:1px solid var(--line);}
+  .cxgroup:first-of-type{border-top:none;}
+  .cxtop{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px;}
+  .cxn{font-size:14px;font-weight:600;color:var(--ink);}
+  .cxn em{font-style:normal;font-size:11.5px;font-weight:600;color:var(--muted);margin-left:4px;}
+  .cxall{flex-shrink:0;font-family:inherit;font-size:12px;font-weight:700;color:#fff;background:var(--rose);
+    border:none;border-radius:7px;padding:5px 11px;cursor:pointer;transition:.12s;}
+  .cxall:active{transform:scale(.96);}
+  .cxchips{display:flex;flex-wrap:wrap;gap:6px;}
+  .cxchip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--ink);
+    background:var(--surface-2);border:1px solid var(--line);border-radius:7px;padding:5px 9px;cursor:pointer;transition:.12s;}
+  .cxchip i{font-style:normal;color:var(--rose);font-weight:700;font-size:14px;line-height:1;}
+  .cxchip:active{transform:scale(.96);} .cxchip:hover{border-color:var(--rose);}
   .wdbtn{flex:1;min-width:38px;padding:10px 0;border-radius:8px;border:1px solid var(--line);
     background:var(--surface-2);color:var(--muted);font-family:inherit;font-size:14px;font-weight:600;
     cursor:pointer;transition:.12s;}
@@ -271,6 +295,23 @@
     <div class="err" id="amErr"></div>
     <div class="mlist" id="mlist"></div>
     <hr/>
+    <label>신청 취소 관리</label>
+    <p class="ghint" style="margin:0 0 8px">지원자의 신청을 골라 취소할 수 있어요.</p>
+    <div class="rpnav">
+      <button class="nbtn" id="cxPrev">◀</button>
+      <span class="rpml" id="cancelMonthLabel">—</span>
+      <button class="nbtn" id="cxNext">▶</button>
+    </div>
+    <div class="rplist" id="cancelList"></div>
+    <hr/>
+    <label>봉사보고 확인</label>
+    <div class="rpnav">
+      <button class="nbtn" id="rpPrev">◀</button>
+      <span class="rpml" id="rpMonthLabel">—</span>
+      <button class="nbtn" id="rpNext">▶</button>
+    </div>
+    <div class="rplist" id="rpAdminList"></div>
+    <hr/>
     <label>관리자 비밀번호 바꾸기 (해시 만들기)</label>
     <p class="ghint" style="margin:0 0 6px">새 비밀번호로 해시를 만든 뒤, 파일 상단 <code>ADMIN_PIN_HASH</code> 값을 그 해시로 교체하고 다시 올리면 됩니다.</p>
     <div class="addmember">
@@ -335,11 +376,6 @@
     <h3>신청</h3>
     <div class="when" id="aWhen"></div>
     <div class="meRow">신청자: <b id="aMe"></b></div>
-    <label>신청 방식</label>
-    <div class="seg" id="aSeg">
-      <div class="opt sel" data-kind="once">이 날짜만<small>선택한 하루</small></div>
-      <div class="opt" data-kind="fixed">매주 이 요일<small>고정 등록</small></div>
-    </div>
     <div class="err" id="aErr"></div>
     <div class="actions">
       <button class="ghost" id="aCancel">뒤로</button>
@@ -357,6 +393,35 @@
     <div class="actions">
       <button class="ghost" id="xClose">아니요</button>
       <button class="go" id="xGo" style="background:var(--rose)">취소합니다</button>
+    </div>
+  </div>
+</div>
+
+<!-- 봉사보고 입력 -->
+<div class="scrim" id="reportScrim">
+  <div class="sheet">
+    <h3>봉사보고</h3>
+    <div class="when" id="rpWhen"></div>
+    <label>봉사 시간</label>
+    <input type="text" id="rpHours" placeholder="예) 10시간 · 보조 파이오니아" maxlength="40" autocomplete="off" />
+    <label style="margin-top:10px">연구 건수</label>
+    <input type="text" id="rpStudies" inputmode="numeric" placeholder="예) 2" maxlength="20" autocomplete="off" />
+    <div class="err" id="rpErr"></div>
+    <div class="actions">
+      <button class="ghost" id="rpLater">나중에</button>
+      <button class="go" id="rpGo">보고하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 공통 확인 모달 -->
+<div class="scrim" id="confirmScrim">
+  <div class="sheet">
+    <h3 id="cfTitle">확인</h3>
+    <div class="when" id="cfMsg"></div>
+    <div class="actions">
+      <button class="ghost" id="cfNo">아니요</button>
+      <button class="go" id="cfYes" style="background:var(--rose)">확인</button>
     </div>
   </div>
 </div>
@@ -422,6 +487,7 @@ function monthGrid(ref){
 const state={
   monthRef:new Date(), dateData:{}, fixedData:{},
   roster:{members:[],notice:"",activeDays:DEFAULT_ACTIVE.slice()},
+  reports:{}, reportsReady:false, reportChecked:false, reportMonth:null, adminRptMonth:null, adminCancelMonth:null,
   me:null, isAdmin:false,
   mode:"demo", openDayKey:null, openDayWd:null, add:{dateKey:null,weekday:null,kind:"once"},
 };
@@ -471,11 +537,18 @@ function makeLive(fs,db){
     });
   }
   const saveRoster=(r)=>setDoc(doc(db,"meta","roster"),r);
+  function subscribeReports(onChange){
+    return onSnapshot(doc(db,"meta","reports"),snap=>{
+      state.reports = snap.exists() ? (snap.data()||{}) : {};
+      onChange&&onChange();
+    });
+  }
+  const saveReport=(month,name,data)=>setDoc(doc(db,"meta","reports"),{[month]:{[name]:data}},{merge:true});
   async function add(coll,id,e){const r=doc(db,coll,id);const c=await getDoc(r);
     if(c.exists())await updateDoc(r,{signups:arrayUnion(e)});else await setDoc(r,{signups:[e]});}
   async function rem(coll,id,e){const r=doc(db,coll,id);const c=await getDoc(r);if(!c.exists())return;
     await setDoc(r,{signups:(c.data().signups||[]).filter(s=>!(s.name===e.name&&s.ts===e.ts))});}
-  return {kind:"live",subscribeMonth,subscribeRoster,saveRoster,stop:clearMonth,
+  return {kind:"live",subscribeMonth,subscribeRoster,saveRoster,subscribeReports,saveReport,stop:clearMonth,
     addDate:(k,e)=>add("dates",k,e),removeDate:(k,e)=>rem("dates",k,e),
     addFixed:(w,e)=>add("recurring",String(w),e),removeFixed:(w,e)=>rem("recurring",String(w),e)};
 }
@@ -485,13 +558,17 @@ function makeDemo(){
   const dates={[k(3)]:[{name:"김봉사",ts:1}],[k(5)]:[{name:"이도움",ts:2},{name:"박나눔",ts:3}]};
   const fixed={6:[{name:"최주말",ts:4}]};
   let roster={members:[{name:"김봉사"},{name:"이도움"},{name:"박나눔"},{name:"최주말"}],notice:"이번 주 토요일 봉사는 오전 9시에 모입니다.\n우천 시 실내에서 진행합니다.",activeDays:DEFAULT_ACTIVE.slice()};
-  let cbM=()=>{},cbR=()=>{};
+  let reports={};
+  let cbM=()=>{},cbR=()=>{},cbRep=()=>{};
   const pushM=()=>{state.dateData=JSON.parse(JSON.stringify(dates));state.fixedData=JSON.parse(JSON.stringify(fixed));cbM();};
   const pushR=()=>{state.roster=JSON.parse(JSON.stringify(roster));cbR();};
+  const pushRep=()=>{state.reports=JSON.parse(JSON.stringify(reports));cbRep();};
   return {kind:"demo",
     subscribeMonth:(_r,fn)=>{cbM=fn;pushM();},
     subscribeRoster:(fn)=>{cbR=fn;pushR();return ()=>{};},
     saveRoster:(r)=>{roster=JSON.parse(JSON.stringify(r));pushR();},
+    subscribeReports:(fn)=>{cbRep=fn;pushRep();return ()=>{};},
+    saveReport:(month,name,data)=>{ (reports[month] ||= {})[name]={...data}; pushRep(); return Promise.resolve(); },
     stop:()=>{},
     addDate:(key,e)=>{(dates[key] ||= []).push(e);pushM();},
     removeDate:(key,e)=>{dates[key]=(dates[key]||[]).filter(s=>!(s.name===e.name&&s.ts===e.ts));pushM();},
@@ -560,6 +637,7 @@ function enterApp(){
   $("ubAdm").style.display=state.isAdmin?"inline":"none";
   $("ubAdmin").style.display=state.isAdmin?"inline":"none";
   backend.subscribeMonth(state.monthRef,render); render();
+  state.reportChecked=false; checkReportPopup();
 }
 function doLoginMember(){
   const name=$("liName").value.trim();
@@ -609,7 +687,143 @@ function openAdminPanel(){
   $("login").classList.remove("on"); $("admin").classList.add("on");
   $("amName").value="";$("amErr").textContent="";$("hashIn").value="";$("hashOut").style.display="none";
   $("noticeInput").value=state.roster.notice||"";$("noticeMsg").textContent="";
-  renderRoster();
+  state.adminRptMonth=reportTargetMonth();
+  state.adminCancelMonth=monthKeyOf(new Date());
+  renderRoster(); renderReports(); renderCancelMgr();
+}
+/* ---------------- 봉사보고 ---------------- */
+function monthKeyOf(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;}
+function prevMonthKey(d=new Date()){return monthKeyOf(new Date(d.getFullYear(),d.getMonth()-1,1));}
+function shiftMonth(key,delta){const [y,m]=key.split("-").map(Number);const d=new Date(y,m-1+delta,1);return monthKeyOf(d);}
+function monthLabel(key){const [y,m]=key.split("-");return `${+y}년 ${+m}월`;}
+function reportTargetMonth(){return prevMonthKey();}   // 직전 달을 보고
+function myReport(month){const r=state.reports&&state.reports[month];return (r&&state.me)?r[state.me.name]:null;}
+function hasReported(month){return !!myReport(month);}
+function checkReportPopup(){
+  if(!state.me || state.reportChecked || !state.reportsReady) return;
+  state.reportChecked=true;
+  const month=reportTargetMonth();
+  if(!hasReported(month)) openReport(month);
+}
+function openReport(month){
+  state.reportMonth=month;
+  $("rpWhen").textContent=`${monthLabel(month)} 봉사보고를 입력해주세요.`;
+  const mine=myReport(month);
+  $("rpHours").value=mine?(mine.hours||""):"";
+  $("rpStudies").value=mine?(mine.studies??""):"";
+  $("rpErr").textContent="";
+  $("reportScrim").classList.add("on");
+  setTimeout(()=>$("rpHours").focus(),60);
+}
+$("rpLater").onclick=()=>$("reportScrim").classList.remove("on");
+$("rpGo").onclick=async()=>{
+  const hours=$("rpHours").value.trim();
+  const studies=$("rpStudies").value.trim();
+  if(!hours){$("rpErr").style.color="var(--rose)";$("rpErr").textContent="봉사 시간을 입력해주세요.";return;}
+  $("rpGo").disabled=true;
+  try{
+    await backend.saveReport(state.reportMonth, state.me.name, {hours, studies, ts:Date.now()});
+    $("reportScrim").classList.remove("on");
+  }catch(e){$("rpErr").style.color="var(--rose)";$("rpErr").textContent="저장에 실패했어요. 잠시 후 다시 시도해주세요.";console.error(e);}
+  finally{$("rpGo").disabled=false;}
+};
+$("rpPrev").onclick=()=>{ state.adminRptMonth=shiftMonth(state.adminRptMonth||reportTargetMonth(),-1); renderReports(); };
+$("rpNext").onclick=()=>{ state.adminRptMonth=shiftMonth(state.adminRptMonth||reportTargetMonth(),1); renderReports(); };
+/* ---------------- 공통 확인 모달 ---------------- */
+let _confirmResolve=null;
+function appConfirm(msg, yesLabel){
+  return new Promise(res=>{
+    _confirmResolve=res;
+    $("cfMsg").textContent=msg;
+    $("cfYes").textContent=yesLabel||"확인";
+    $("confirmScrim").classList.add("on");
+  });
+}
+function _closeConfirm(v){ $("confirmScrim").classList.remove("on"); const r=_confirmResolve; _confirmResolve=null; if(r) r(v); }
+$("cfYes").onclick=()=>_closeConfirm(true);
+$("cfNo").onclick=()=>_closeConfirm(false);
+$("confirmScrim").onclick=e=>{ if(e.target===$("confirmScrim")) _closeConfirm(false); };
+
+/* ---------------- 관리자 신청 취소 ---------------- */
+function cancelRows(month){
+  const rows=[]; const mNum=+month.split("-")[1];
+  Object.keys(state.fixedData||{}).forEach(wdStr=>{
+    const wd=+wdStr;
+    (state.fixedData[wd]||[]).forEach(s=>rows.push({kind:"fixed",wd,name:s.name,ts:s.ts,sort:-1,when:`매주 ${WD[wd]}`}));
+  });
+  const prefix=month+"-";
+  Object.keys(state.dateData||{}).forEach(key=>{
+    if(!key.startsWith(prefix)) return;
+    const day=+key.split("-")[2];
+    const wd=new Date(key+"T00:00:00").getDay();
+    (state.dateData[key]||[]).forEach(s=>rows.push({kind:"date",key,name:s.name,ts:s.ts,sort:day,when:`${mNum}/${day}(${WD[wd]})`}));
+  });
+  rows.sort((a,b)=> a.sort-b.sort || a.name.localeCompare(b.name,"ko"));
+  return rows;
+}
+function cancelGroups(month){
+  const map={};
+  cancelRows(month).forEach(r=>{ (map[r.name] ||= []).push(r); });
+  return Object.keys(map).sort((a,b)=>a.localeCompare(b,"ko")).map(name=>({name,items:map[name]}));
+}
+function renderCancelMgr(){
+  const box=$("cancelList"); if(!box) return;
+  if(!state.adminCancelMonth) state.adminCancelMonth=monthKeyOf(new Date());
+  const month=state.adminCancelMonth;
+  const ml=$("cancelMonthLabel"); if(ml) ml.textContent=monthLabel(month);
+  const groups=cancelGroups(month);
+  box._groups=groups;
+  if(!groups.length){ box.innerHTML=`<div class="none">이 달에 신청 내역이 없습니다.</div>`; return; }
+  box.innerHTML=groups.map((g,gi)=>`
+    <div class="cxgroup">
+      <div class="cxtop">
+        <span class="cxn">${esc(g.name)} <em>${g.items.length}건</em></span>
+        <button class="cxall" data-g="${gi}">전체 취소</button>
+      </div>
+      <div class="cxchips">
+        ${g.items.map((it,ii)=>`<span class="cxchip" data-g="${gi}" data-i="${ii}">${esc(it.when)}<i>×</i></span>`).join("")}
+      </div>
+    </div>`).join("");
+}
+async function _removeOne(it){
+  const entry={name:it.name,ts:it.ts};
+  if(it.kind==="fixed") return backend.removeFixed(it.wd,entry);
+  return backend.removeDate(it.key,entry);
+}
+$("cxPrev").onclick=()=>{ state.adminCancelMonth=shiftMonth(state.adminCancelMonth||monthKeyOf(new Date()),-1); renderCancelMgr(); };
+$("cxNext").onclick=()=>{ state.adminCancelMonth=shiftMonth(state.adminCancelMonth||monthKeyOf(new Date()),1); renderCancelMgr(); };
+$("cancelList").addEventListener("click",async e=>{
+  const groups=$("cancelList")._groups||[];
+  const chip=e.target.closest(".cxchip");
+  const allBtn=e.target.closest(".cxall");
+  if(chip){
+    const g=groups[+chip.dataset.g]; const it=g&&g.items[+chip.dataset.i]; if(!it) return;
+    if(!await appConfirm(`${g.name} 님의 "${it.when}" 신청을 취소할까요?`,"취소합니다")) return;
+    try{ await _removeOne(it); }catch(err){ console.error(err); alert("취소에 실패했어요."); }
+    renderCancelMgr();
+  }else if(allBtn){
+    const g=groups[+allBtn.dataset.g]; if(!g) return;
+    if(!await appConfirm(`${g.name} 님의 신청 ${g.items.length}건을 모두 취소할까요?`,"전체 취소")) return;
+    for(const it of g.items){ try{ await _removeOne(it); }catch(err){ console.error(err); } }
+    renderCancelMgr();
+  }
+});
+function renderReports(){
+  const box=$("rpAdminList"); if(!box) return;
+  if(!state.adminRptMonth) state.adminRptMonth=reportTargetMonth();
+  const month=state.adminRptMonth;
+  const ml=$("rpMonthLabel"); if(ml) ml.textContent=monthLabel(month);
+  const data=(state.reports&&state.reports[month])||{};
+  const members=(state.roster.members||[]).map(m=>m.name);
+  const names=Array.from(new Set([...members, ...Object.keys(data)])).sort((a,b)=>a.localeCompare(b,"ko"));
+  if(!names.length){ box.innerHTML=`<div class="none">등록된 봉사자가 없습니다.</div>`; return; }
+  const done=names.filter(n=>data[n]).length;
+  box.innerHTML=`<div class="rpsum">제출 <b>${done}</b> / ${names.length}명</div>`+
+    names.map(n=>{
+      const r=data[n];
+      if(r) return `<div class="rprow"><span class="rpn">${esc(n)}</span><span class="rpv">시간 <b>${esc(r.hours||"-")}</b> · 연구 <b>${esc(String(r.studies??"")||"-")}</b></span></div>`;
+      return `<div class="rprow miss"><span class="rpn">${esc(n)}</span><span class="rpv">미제출</span></div>`;
+    }).join("");
 }
 $("noticeSave").onclick=async()=>{
   const text=$("noticeInput").value.trim();
@@ -700,6 +914,7 @@ function render(){
     cal.appendChild(el);
   });
   renderMonthRoster();
+  if(state.isAdmin && $("admin").classList.contains("on")) renderCancelMgr();
   if(state.openDayKey) refreshDaySheet();
 }
 
@@ -738,24 +953,19 @@ function openAdd(dateKey,weekday){
   const [,m,dd]=dateKey.split("-");
   $("aWhen").textContent=`${+m}월 ${+dd}일 (${WD[weekday]}요일)`;
   $("aMe").textContent=state.me.name; $("aErr").textContent="";
-  document.querySelectorAll("#aSeg .opt").forEach(o=>o.classList.toggle("sel",o.dataset.kind==="once"));
   $("addScrim").classList.add("on");
 }
-document.querySelectorAll("#aSeg .opt").forEach(o=>o.onclick=()=>{
-  document.querySelectorAll("#aSeg .opt").forEach(x=>x.classList.remove("sel"));
-  o.classList.add("sel"); state.add.kind=o.dataset.kind;});
 $("aCancel").onclick=()=>$("addScrim").classList.remove("on");
 $("addScrim").onclick=e=>{if(e.target===$("addScrim"))$("addScrim").classList.remove("on");};
 $("aGo").onclick=async()=>{
   if(!state.me) return;
   const name=state.me.name;
-  const pool=state.add.kind==="fixed"?(state.fixedData[state.add.weekday]||[]):(state.dateData[state.add.dateKey]||[]);
-  if(pool.some(s=>s.name===name)){$("aErr").textContent=state.add.kind==="fixed"?"이미 이 요일 고정으로 신청되어 있어요.":"이미 이 날 신청되어 있어요.";return;}
+  const pool=state.dateData[state.add.dateKey]||[];
+  if(pool.some(s=>s.name===name)){$("aErr").textContent="이미 이 날 신청되어 있어요.";return;}
   const entry={name,ts:Date.now()};
   $("aGo").disabled=true;
   try{
-    if(state.add.kind==="fixed") await backend.addFixed(state.add.weekday,entry);
-    else await backend.addDate(state.add.dateKey,entry);
+    await backend.addDate(state.add.dateKey,entry);
     $("addScrim").classList.remove("on"); pulseCell(state.add.dateKey);
   }catch(err){$("aErr").textContent="저장에 실패했어요. 잠시 후 다시 시도해주세요.";console.error(err);}
   finally{$("aGo").disabled=false;}
@@ -809,6 +1019,11 @@ $("today").onclick=()=>{state.monthRef=new Date();backend.subscribeMonth(state.m
       if(saved && (state.roster.members||[]).some(m=>m.name===saved)){ state.me={name:saved}; enterApp(); }
       else showLogin();
     }
+  });
+  backend.subscribeReports(()=>{
+    state.reportsReady=true;
+    if(state.isAdmin && $("admin").classList.contains("on")) renderReports();
+    checkReportPopup();
   });
 })();
 </script>
