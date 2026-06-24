@@ -763,7 +763,8 @@ function assignHtml(data, myName){
   let html=""; const startMin=hmToMin(data.start||"10:00");
   (data.locs||[]).forEach(loc=>{
     html+=`<div class="asg-loc"><div class="asg-loc-h">${esc(loc.name)} <em>그룹당 ${loc.min}분</em></div>`;
-    loc.slots.forEach((pair,i)=>{
+    loc.slots.forEach((slot,i)=>{
+      const pair=(slot&&slot.p)||[];
       const t0=minToHm(startMin+i*loc.min), t1=minToHm(startMin+(i+1)*loc.min);
       const people=pair.length?pair.map(n=>`<span class="asg-p${myName&&n===myName?" me":""}">${esc(n)}</span>`).join(""):`<span class="asg-empty">미정</span>`;
       html+=`<div class="asg-slot"><span class="asg-t">${t0}~${t1}</span><span class="asg-pp">${people}</span></div>`;
@@ -804,7 +805,7 @@ $("asgGo").onclick=async()=>{
   if(!pool.length){ $("asgMsg").textContent="이 날 지원자가 없습니다."; return; }
   const start=$("asgStart").value||"10:00", locs=[];
   const build=(name,groups)=>{ if(!groups) return; const min=groups===4?15:20; const slots=[];
-    for(let i=0;i<groups;i++){ const pair=[]; if(pool.length)pair.push(pool.shift()); if(pool.length)pair.push(pool.shift()); slots.push(pair); }
+    for(let i=0;i<groups;i++){ const pair=[]; if(pool.length)pair.push(pool.shift()); if(pool.length)pair.push(pool.shift()); slots.push({p:pair}); }
     locs.push({name,min,slots}); };
   build("씨젠",seizen); build("롯데리아",lotte);
   const data={start, locs, waiting:pool.slice(), ts:Date.now()};
@@ -980,9 +981,9 @@ $("noticeSave").onclick=async()=>{
 function renderRoster(){
   renderWdToggle();
   renderDayNotes();
-  const ms=state.roster.members||[];
+  const ms=(state.roster.members||[]).map((m,i)=>({m,i})).sort((a,b)=>a.m.name.localeCompare(b.m.name,"ko"));
   $("mlist").innerHTML = ms.length
-    ? ms.map((m,i)=>`<div class="mrow"><span class="mn">${esc(m.name)}</span><button class="x" data-i="${i}">삭제</button></div>`).join("")
+    ? ms.map(({m,i})=>`<div class="mrow"><span class="mn">${esc(m.name)}</span><button class="x" data-i="${i}">삭제</button></div>`).join("")
     : `<div class="none">등록된 이름이 없어요. 위에서 추가하세요.</div>`;
 }
 function renderDayNotes(){
