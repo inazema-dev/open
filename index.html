@@ -226,7 +226,7 @@
   .card{background:var(--surface);border-radius:14px;max-width:380px;width:100%;padding:26px 22px;
     box-shadow:0 16px 50px rgba(15,25,40,.4);text-align:center;position:relative;}
   .hidden-admin{position:absolute;top:0;right:0;width:54px;height:54px;background:transparent;
-    z-index:5;-webkit-tap-highlight-color:transparent;}
+    z-index:5;cursor:pointer;-webkit-tap-highlight-color:transparent;}
   .card.wide{max-width:440px;max-height:88vh;overflow-y:auto;text-align:left;}
   .glogo{font-size:20px;font-weight:800;color:var(--nav);margin-bottom:4px;}
   .ghint{color:var(--muted);font-size:13px;margin:0 0 16px;}
@@ -732,10 +732,10 @@ function revealAdmin(){
 }
 (function(){
   let taps=0, timer=null;
-  $("adminZone").addEventListener("click",()=>{
-    taps++; clearTimeout(timer); timer=setTimeout(()=>{taps=0;},2000);
-    if(taps>=4){ taps=0; clearTimeout(timer); revealAdmin(); }
-  });
+  const bump=()=>{ taps++; clearTimeout(timer); timer=setTimeout(()=>{taps=0;},2000);
+    if(taps>=4){ taps=0; clearTimeout(timer); revealAdmin(); } };
+  const ev = window.PointerEvent ? "pointerdown" : "click";
+  $("adminZone").addEventListener(ev, bump);
 })();
 $("toMember").onclick=()=>{$("adminForm").style.display="none";$("memberForm").style.display="";};
 $("laGo").onclick=doLoginAdmin;
