@@ -824,8 +824,8 @@ $("asgGo").onclick=async()=>{
   const male=[],female=[],unknown=[];
   shuffleArr(names).forEach(n=>{const s=sexOf(n); if(s==="남")male.push(n); else if(s==="여")female.push(n); else unknown.push(n);});
   const mk=pairsOf(male), fk=pairsOf(female);
-  const queue=[...mk.pairs, ...fk.pairs];       // 동성 2인 짝
-  const singles=[...mk.single, ...fk.single];   // 성별별 남은 1명
+  const queue=shuffleArr([...mk.pairs, ...fk.pairs]); // 동성 2인 짝 (순서 무작위)
+  const singles=shuffleArr([...mk.single, ...fk.single]); // 성별별 남은 1명
   const waiting=[...unknown];                    // 성별 미지정자는 대기
   // 장소별 빈 슬롯 생성
   const start=$("asgStart").value||"10:00", locs=[];
