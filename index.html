@@ -244,6 +244,10 @@
     border-radius:8px;padding:9px 11px;font-size:14px;}
   .mrow .mn{flex:1;font-weight:600;} .mrow .mp{font-size:11px;color:var(--muted);}
   .mrow .x{background:none;color:var(--rose);font-size:12.5px;font-weight:600;}
+  .sexsel{display:inline-flex;gap:3px;flex-shrink:0;}
+  .sexbtn{font-family:inherit;font-size:12px;font-weight:700;color:var(--muted);background:var(--surface);
+    border:1px solid var(--line);border-radius:6px;padding:3px 8px;cursor:pointer;transition:.1s;}
+  .sexbtn.on{background:var(--primary);border-color:var(--primary);color:#fff;}
   hr{border:none;border-top:1px solid var(--line);margin:18px 0 2px;}
   .notice{background:var(--surface-2);border:1px solid var(--line);border-left:3px solid var(--primary);
     border-radius:8px;padding:12px 14px;margin-bottom:16px;text-align:left;max-height:200px;overflow-y:auto;}
@@ -365,6 +369,7 @@
     <label>봉사자 추가</label>
     <div class="addmember">
       <input type="text" id="amName" placeholder="이름" maxlength="20" />
+      <select id="amSex"><option value="남">남</option><option value="여">여</option></select>
       <button id="amAdd">추가</button>
     </div>
     <div class="err" id="amErr"></div>
@@ -654,7 +659,7 @@ function makeDemo(){
   const k=(i)=>{const d=new Date(mon);d.setDate(d.getDate()+i);return ymd(d);};
   const dates={[k(3)]:[{name:"김봉사",ts:1}],[k(5)]:[{name:"이도움",ts:2},{name:"박나눔",ts:3}]};
   const fixed={6:[{name:"최주말",ts:4}]};
-  let roster={members:[{name:"김봉사"},{name:"이도움"},{name:"박나눔"},{name:"최주말"}],notice:"이번 주 토요일 봉사는 오전 9시에 모입니다.\n우천 시 실내에서 진행합니다.",activeDays:DEFAULT_ACTIVE.slice(),dayNotes:{}};
+  let roster={members:[{name:"김봉사",sex:"남"},{name:"이도움",sex:"여"},{name:"박나눔",sex:"남"},{name:"최주말",sex:"여"}],notice:"이번 주 토요일 봉사는 오전 9시에 모입니다.\n우천 시 실내에서 진행합니다.",activeDays:DEFAULT_ACTIVE.slice(),dayNotes:{}};
   let reports={};
   let assignments={};
   let cbM=()=>{},cbR=()=>{},cbRep=()=>{},cbAsg=()=>{};
@@ -805,20 +810,39 @@ $("asgDate").addEventListener("change",()=>{
   if(names.length && $("asgSeizen").value==="0" && $("asgLotte").value==="0") $("asgSeizen").value = names.length>=7?"4":"3";
   renderAssignForm();
 });
+function sexOf(name){ const m=(state.roster.members||[]).find(x=>x.name===name); return (m&&m.sex)||""; }
+function pairsOf(arr){ const a=arr.slice(),pairs=[]; while(a.length>=2) pairs.push([a.shift(),a.shift()]); return {pairs,single:a}; }
 $("asgGo").onclick=async()=>{
   const dk=$("asgDate").value;
   $("asgMsg").style.color="var(--rose)";$("asgMsg").textContent="";
   if(!dk){ $("asgMsg").textContent="날짜를 선택해주세요."; return; }
   const seizen=+$("asgSeizen").value, lotte=+$("asgLotte").value;
   if(!seizen && !lotte){ $("asgMsg").textContent="장소별 그룹 수를 하나 이상 선택해주세요."; return; }
-  let pool=shuffleArr(asgNames(dk));
-  if(!pool.length){ $("asgMsg").textContent="이 날 지원자가 없습니다."; return; }
+  const names=asgNames(dk);
+  if(!names.length){ $("asgMsg").textContent="이 날 지원자가 없습니다."; return; }
+  // 성별 분리 (남/여 같은 성별끼리만 짝)
+  const male=[],female=[],unknown=[];
+  shuffleArr(names).forEach(n=>{const s=sexOf(n); if(s==="남")male.push(n); else if(s==="여")female.push(n); else unknown.push(n);});
+  const mk=pairsOf(male), fk=pairsOf(female);
+  const queue=[...mk.pairs, ...fk.pairs];       // 동성 2인 짝
+  const singles=[...mk.single, ...fk.single];   // 성별별 남은 1명
+  const waiting=[...unknown];                    // 성별 미지정자는 대기
+  // 장소별 빈 슬롯 생성
   const start=$("asgStart").value||"10:00", locs=[];
-  const build=(name,groups)=>{ if(!groups) return; const min=groups===4?15:20; const slots=[];
-    for(let i=0;i<groups;i++){ const pair=[]; if(pool.length)pair.push(pool.shift()); if(pool.length)pair.push(pool.shift()); slots.push({p:pair}); }
-    locs.push({name,min,slots}); };
-  build("씨젠",seizen); build("롯데리아",lotte);
-  const data={start, locs, waiting:pool.slice(), ts:Date.now()};
+  const buildLoc=(name,groups)=>{ if(!groups) return; const min=groups===4?15:20; const slots=[];
+    for(let i=0;i<groups;i++) slots.push({p:[]}); locs.push({name,min,slots}); };
+  buildLoc("씨젠",seizen); buildLoc("롯데리아",lotte);
+  // 시간대 순서대로 채우기 (짝 먼저, 그다음 남은 1명)
+  const allSlots=[]; locs.forEach(l=>l.slots.forEach(s=>allSlots.push(s)));
+  let qi=0;
+  for(const slot of allSlots){
+    if(qi<queue.length) slot.p=queue[qi++];
+    else if(singles.length) slot.p=[singles.shift()];
+    else slot.p=[];
+  }
+  while(qi<queue.length) waiting.push(...queue[qi++]);
+  waiting.push(...singles);
+  const data={start, locs, waiting, ts:Date.now()};
   try{ await backend.saveAssign(dk,data); $("asgMsg").style.color="var(--muted)"; $("asgMsg").textContent="배정 완료! 봉사자 화면에도 표시됩니다."; }
   catch(err){ $("asgMsg").textContent="저장 실패. 다시 시도해주세요."; console.error(err); }
 };
@@ -993,7 +1017,7 @@ function renderRoster(){
   renderDayNotes();
   const ms=(state.roster.members||[]).map((m,i)=>({m,i})).sort((a,b)=>a.m.name.localeCompare(b.m.name,"ko"));
   $("mlist").innerHTML = ms.length
-    ? ms.map(({m,i})=>`<div class="mrow"><span class="mn">${esc(m.name)}</span><button class="x" data-i="${i}">삭제</button></div>`).join("")
+    ? ms.map(({m,i})=>`<div class="mrow"><span class="mn">${esc(m.name)}</span><span class="sexsel"><button class="sexbtn${m.sex==="남"?" on":""}" data-i="${i}" data-sex="남">남</button><button class="sexbtn${m.sex==="여"?" on":""}" data-i="${i}" data-sex="여">여</button></span><button class="x" data-i="${i}">삭제</button></div>`).join("")
     : `<div class="none">등록된 이름이 없어요. 위에서 추가하세요.</div>`;
 }
 function renderDayNotes(){
@@ -1041,17 +1065,24 @@ $("amAdd").onclick=async()=>{
   const name=$("amName").value.trim();
   if(!name){$("amErr").textContent="이름을 입력해주세요.";return;}
   if((state.roster.members||[]).some(m=>m.name===name)){$("amErr").textContent="이미 등록된 이름입니다.";return;}
-  const r=metaDoc({members:[...(state.roster.members||[]),{name}]});
+  const sex=$("amSex")?$("amSex").value:"";
+  const r=metaDoc({members:[...(state.roster.members||[]),{name,sex}]});
   $("amErr").textContent="";
   try{ await backend.saveRoster(r); $("amName").value=""; $("amName").focus(); }
   catch(e){$("amErr").textContent="저장 실패. 다시 시도해주세요.";console.error(e);}
 };
 $("amName").addEventListener("keydown",e=>{if(e.key==="Enter")$("amAdd").click();});
 $("mlist").addEventListener("click",async e=>{
+  const sx=e.target.closest(".sexbtn");
+  if(sx){
+    const i=+sx.dataset.i; const members=(state.roster.members||[]).map(m=>({...m}));
+    if(!members[i]) return; members[i].sex=sx.dataset.sex;
+    try{ await backend.saveRoster(metaDoc({members})); }catch(err){console.error(err);}
+    return;
+  }
   const b=e.target.closest(".x"); if(!b) return;
-  const i=+b.dataset.i; const members=(state.roster.members||[]).slice(); const removed=members.splice(i,1)[0];
-  const r=metaDoc({members});
-  try{ await backend.saveRoster(r); }catch(err){console.error(err);}
+  const i=+b.dataset.i; const members=(state.roster.members||[]).slice(); members.splice(i,1);
+  try{ await backend.saveRoster(metaDoc({members})); }catch(err){console.error(err);}
 });
 $("hashGo").onclick=async()=>{
   const pw=$("hashIn").value.trim();
