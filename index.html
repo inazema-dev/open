@@ -108,6 +108,28 @@
   .noteform input[type=date]{flex:0 0 auto;}
   .noteform input[type=text]{flex:1;min-width:120px;}
   .noteform button{flex:0 0 auto;}
+  .asg-form{display:flex;flex-direction:column;gap:7px;margin-bottom:8px;}
+  .asg-row{display:flex;align-items:center;gap:8px;}
+  .asg-lb{flex:0 0 56px;font-size:13px;font-weight:600;color:var(--muted);}
+  .asg-row input,.asg-row select{flex:1;}
+  .asg-applicants{margin:6px 0;}
+  .asg-hint{font-size:12.5px;color:var(--muted);line-height:1.5;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;}
+  .asg-hint b{color:var(--ink);}
+  .asg-btns{display:flex;gap:6px;margin-top:8px;}
+  .asg-result{margin-top:12px;}
+  .asg-loc{margin-bottom:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+  .asg-loc-h{background:var(--primary);color:#fff;font-size:13.5px;font-weight:700;padding:7px 12px;}
+  .asg-loc-h em{font-style:normal;font-weight:600;opacity:.85;font-size:11.5px;margin-left:6px;}
+  .asg-slot{display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--line);}
+  .asg-slot:first-of-type{border-top:none;}
+  .asg-t{flex:0 0 96px;font-size:12.5px;font-weight:700;color:var(--primary-d);font-variant-numeric:tabular-nums;}
+  .asg-pp{display:flex;flex-wrap:wrap;gap:5px;}
+  .asg-p{font-size:13px;font-weight:600;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:7px;padding:4px 9px;}
+  .asg-p.me{background:var(--primary-soft);border-color:var(--primary);color:var(--primary-d);}
+  .asg-empty{font-size:12.5px;color:var(--muted);}
+  .asg-wait{font-size:12.5px;color:var(--muted);padding:4px 2px;}
+  .dp-asg{margin-top:14px;}
+  .dp-asg-h{font-size:14px;font-weight:800;color:var(--ink);margin-bottom:8px;}
   .cell .dn{font-size:13px;font-weight:700;color:var(--ink);line-height:1;}
   .cell.sat .dn{color:var(--primary);} .cell.sun .dn{color:var(--rose);}
   .cell.hol .dn{color:var(--rose);}
@@ -347,6 +369,26 @@
     </div>
     <div class="rplist" id="cancelList"></div>
     <hr/>
+    <label>전시대 봉사 배정</label>
+    <p class="ghint" style="margin:0 0 8px">날짜를 고르고 장소별 그룹 수를 정한 뒤 자동 배정하세요. (2명씩 · 3그룹=20분 · 4그룹=15분)</p>
+    <div class="asg-form">
+      <div class="asg-row"><span class="asg-lb">날짜</span><input type="date" id="asgDate" /></div>
+      <div class="asg-row"><span class="asg-lb">시작</span><input type="time" id="asgStart" value="10:00" /></div>
+      <div class="asg-row"><span class="asg-lb">씨젠</span>
+        <select id="asgSeizen"><option value="0">사용 안함</option><option value="3">3그룹(20분)</option><option value="4">4그룹(15분)</option></select>
+      </div>
+      <div class="asg-row"><span class="asg-lb">롯데리아</span>
+        <select id="asgLotte"><option value="0">사용 안함</option><option value="3">3그룹(20분)</option><option value="4">4그룹(15분)</option></select>
+      </div>
+    </div>
+    <div class="asg-applicants" id="asgApplicants"></div>
+    <div class="asg-btns">
+      <button class="addbig" id="asgGo" style="flex:1">자동 배정</button>
+      <button class="ghost" id="asgClear">삭제</button>
+    </div>
+    <div class="err" id="asgMsg"></div>
+    <div class="asg-result" id="asgResult"></div>
+    <hr/>
     <label>봉사보고 확인</label>
     <div class="rpnav">
       <button class="nbtn" id="rpPrev">◀</button>
@@ -525,7 +567,7 @@ function monthGrid(ref){
 const state={
   monthRef:new Date(), dateData:{}, fixedData:{},
   roster:{members:[],notice:"",activeDays:DEFAULT_ACTIVE.slice(),dayNotes:{}},
-  reports:{}, reportsReady:false, reportChecked:false, reportMonth:null, adminRptMonth:null, adminCancelMonth:null,
+  reports:{}, assignments:{}, reportsReady:false, reportChecked:false, reportMonth:null, adminRptMonth:null, adminCancelMonth:null,
   me:null, isAdmin:false, selectedDay:null,
   mode:"demo", openDayKey:null, openDayWd:null, add:{dateKey:null,weekday:null,kind:"once"},
 };
@@ -582,11 +624,18 @@ function makeLive(fs,db){
     });
   }
   const saveReport=(month,name,data)=>setDoc(doc(db,"meta","reports"),{[month]:{[name]:data}},{merge:true});
+  function subscribeAssign(onChange){
+    return onSnapshot(doc(db,"meta","assignments"),snap=>{
+      state.assignments = snap.exists() ? (snap.data()||{}) : {};
+      onChange&&onChange();
+    });
+  }
+  const saveAssign=(dateKey,data)=>setDoc(doc(db,"meta","assignments"),{[dateKey]:data},{merge:true});
   async function add(coll,id,e){const r=doc(db,coll,id);const c=await getDoc(r);
     if(c.exists())await updateDoc(r,{signups:arrayUnion(e)});else await setDoc(r,{signups:[e]});}
   async function rem(coll,id,e){const r=doc(db,coll,id);const c=await getDoc(r);if(!c.exists())return;
     await setDoc(r,{signups:(c.data().signups||[]).filter(s=>!(s.name===e.name&&s.ts===e.ts))});}
-  return {kind:"live",subscribeMonth,subscribeRoster,saveRoster,subscribeReports,saveReport,stop:clearMonth,
+  return {kind:"live",subscribeMonth,subscribeRoster,saveRoster,subscribeReports,saveReport,subscribeAssign,saveAssign,stop:clearMonth,
     addDate:(k,e)=>add("dates",k,e),removeDate:(k,e)=>rem("dates",k,e),
     addFixed:(w,e)=>add("recurring",String(w),e),removeFixed:(w,e)=>rem("recurring",String(w),e)};
 }
@@ -597,16 +646,20 @@ function makeDemo(){
   const fixed={6:[{name:"최주말",ts:4}]};
   let roster={members:[{name:"김봉사"},{name:"이도움"},{name:"박나눔"},{name:"최주말"}],notice:"이번 주 토요일 봉사는 오전 9시에 모입니다.\n우천 시 실내에서 진행합니다.",activeDays:DEFAULT_ACTIVE.slice(),dayNotes:{}};
   let reports={};
-  let cbM=()=>{},cbR=()=>{},cbRep=()=>{};
+  let assignments={};
+  let cbM=()=>{},cbR=()=>{},cbRep=()=>{},cbAsg=()=>{};
   const pushM=()=>{state.dateData=JSON.parse(JSON.stringify(dates));state.fixedData=JSON.parse(JSON.stringify(fixed));cbM();};
   const pushR=()=>{state.roster=JSON.parse(JSON.stringify(roster));cbR();};
   const pushRep=()=>{state.reports=JSON.parse(JSON.stringify(reports));cbRep();};
+  const pushAsg=()=>{state.assignments=JSON.parse(JSON.stringify(assignments));cbAsg();};
   return {kind:"demo",
     subscribeMonth:(_r,fn)=>{cbM=fn;pushM();},
     subscribeRoster:(fn)=>{cbR=fn;pushR();return ()=>{};},
     saveRoster:(r)=>{roster=JSON.parse(JSON.stringify(r));pushR();},
     subscribeReports:(fn)=>{cbRep=fn;pushRep();return ()=>{};},
     saveReport:(month,name,data)=>{ (reports[month] ||= {})[name]={...data}; pushRep(); return Promise.resolve(); },
+    subscribeAssign:(fn)=>{cbAsg=fn;pushAsg();return ()=>{};},
+    saveAssign:(dateKey,data)=>{ assignments[dateKey]=JSON.parse(JSON.stringify(data)); pushAsg(); return Promise.resolve(); },
     stop:()=>{},
     addDate:(key,e)=>{(dates[key] ||= []).push(e);pushM();},
     removeDate:(key,e)=>{dates[key]=(dates[key]||[]).filter(s=>!(s.name===e.name&&s.ts===e.ts));pushM();},
@@ -693,8 +746,77 @@ function openAdminPanel(){
   $("noticeInput").value=state.roster.notice||"";$("noticeMsg").textContent="";
   state.adminRptMonth=reportTargetMonth();
   state.adminCancelMonth=monthKeyOf(new Date());
-  renderRoster(); renderReports(); renderCancelMgr();
+  $("asgDate").value=(state.selectedDay&&state.selectedDay.key)||todayKey;
+  $("asgStart").value=$("asgStart").value||"10:00";
+  renderRoster(); renderReports(); renderCancelMgr(); renderAssignForm();
 }
+/* ---------------- 전시대 봉사 배정 ---------------- */
+function hmToMin(hm){const [h,m]=(hm||"10:00").split(":").map(Number);return h*60+m;}
+function minToHm(t){const h=Math.floor(t/60)%24,m=t%60;return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;}
+function asgNames(dateKey){
+  if(!dateKey) return [];
+  const wd=new Date(dateKey+"T00:00:00").getDay();
+  return dayList(dateKey,wd).map(s=>s.name);
+}
+function shuffleArr(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function assignHtml(data, myName){
+  let html=""; const startMin=hmToMin(data.start||"10:00");
+  (data.locs||[]).forEach(loc=>{
+    html+=`<div class="asg-loc"><div class="asg-loc-h">${esc(loc.name)} <em>그룹당 ${loc.min}분</em></div>`;
+    loc.slots.forEach((pair,i)=>{
+      const t0=minToHm(startMin+i*loc.min), t1=minToHm(startMin+(i+1)*loc.min);
+      const people=pair.length?pair.map(n=>`<span class="asg-p${myName&&n===myName?" me":""}">${esc(n)}</span>`).join(""):`<span class="asg-empty">미정</span>`;
+      html+=`<div class="asg-slot"><span class="asg-t">${t0}~${t1}</span><span class="asg-pp">${people}</span></div>`;
+    });
+    html+=`</div>`;
+  });
+  if(data.waiting&&data.waiting.length) html+=`<div class="asg-wait">대기(미배정): ${data.waiting.map(esc).join(", ")}</div>`;
+  return html;
+}
+function renderAssignForm(){
+  if(!$("asgDate")) return;
+  const dk=$("asgDate").value;
+  const names=asgNames(dk);
+  const box=$("asgApplicants");
+  if(!dk) box.innerHTML=`<div class="asg-hint">날짜를 선택하면 지원자가 표시됩니다.</div>`;
+  else if(!names.length) box.innerHTML=`<div class="asg-hint">이 날 지원자가 없습니다.</div>`;
+  else box.innerHTML=`<div class="asg-hint"><b>지원자 ${names.length}명</b> · ${names.map(esc).join(", ")}</div>`;
+  renderAssign();
+}
+function renderAssign(){
+  const box=$("asgResult"); if(!box||!$("asgDate")) return;
+  const dk=$("asgDate").value;
+  const data=dk&&state.assignments?state.assignments[dk]:null;
+  box.innerHTML = data ? assignHtml(data,null) : "";
+}
+$("asgDate").addEventListener("change",()=>{
+  const names=asgNames($("asgDate").value);
+  if(names.length && $("asgSeizen").value==="0" && $("asgLotte").value==="0") $("asgSeizen").value = names.length>=7?"4":"3";
+  renderAssignForm();
+});
+$("asgGo").onclick=async()=>{
+  const dk=$("asgDate").value;
+  $("asgMsg").style.color="var(--rose)";$("asgMsg").textContent="";
+  if(!dk){ $("asgMsg").textContent="날짜를 선택해주세요."; return; }
+  const seizen=+$("asgSeizen").value, lotte=+$("asgLotte").value;
+  if(!seizen && !lotte){ $("asgMsg").textContent="장소별 그룹 수를 하나 이상 선택해주세요."; return; }
+  let pool=shuffleArr(asgNames(dk));
+  if(!pool.length){ $("asgMsg").textContent="이 날 지원자가 없습니다."; return; }
+  const start=$("asgStart").value||"10:00", locs=[];
+  const build=(name,groups)=>{ if(!groups) return; const min=groups===4?15:20; const slots=[];
+    for(let i=0;i<groups;i++){ const pair=[]; if(pool.length)pair.push(pool.shift()); if(pool.length)pair.push(pool.shift()); slots.push(pair); }
+    locs.push({name,min,slots}); };
+  build("씨젠",seizen); build("롯데리아",lotte);
+  const data={start, locs, waiting:pool.slice(), ts:Date.now()};
+  try{ await backend.saveAssign(dk,data); $("asgMsg").style.color="var(--muted)"; $("asgMsg").textContent="배정 완료! 봉사자 화면에도 표시됩니다."; }
+  catch(err){ $("asgMsg").textContent="저장 실패. 다시 시도해주세요."; console.error(err); }
+};
+$("asgClear").onclick=async()=>{
+  const dk=$("asgDate").value; if(!dk) return;
+  if(!state.assignments||!state.assignments[dk]){ $("asgMsg").style.color="var(--muted)";$("asgMsg").textContent="삭제할 배정이 없습니다."; return; }
+  if(!await appConfirm(`${dk} 배정을 삭제할까요?`,"삭제")) return;
+  try{ await backend.saveAssign(dk,null); $("asgMsg").textContent=""; }catch(err){ console.error(err); }
+};
 /* ---------------- 봉사보고 ---------------- */
 function monthKeyOf(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;}
 function prevMonthKey(d=new Date()){return monthKeyOf(new Date(d.getFullYear(),d.getMonth()-1,1));}
@@ -1000,7 +1122,8 @@ function renderDayPanel(){
         <button class="dc-apply" id="dAdd">신청하기</button>
       </div>
       <div class="dc-names" id="dList">${chips}</div>
-    </div>`;
+    </div>
+    ${(state.assignments&&state.assignments[key])?`<div class="dp-asg"><div class="dp-asg-h">전시대 배정</div>${assignHtml(state.assignments[key],myName)}</div>`:""}`;
 }
 $("dayPanel").addEventListener("click",e=>{
   if(e.target.closest("#dAdd")){ if(state.selectedDay) openAdd(state.selectedDay.key,state.selectedDay.wd); return; }
@@ -1087,6 +1210,10 @@ $("today").onclick=()=>{state.monthRef=new Date();state.selectedDay=null;backend
     state.reportsReady=true;
     if(state.isAdmin && $("admin").classList.contains("on")) renderReports();
     checkReportPopup();
+  });
+  backend.subscribeAssign(()=>{
+    render();
+    if(state.isAdmin && $("admin").classList.contains("on")) renderAssign();
   });
 })();
 </script>
