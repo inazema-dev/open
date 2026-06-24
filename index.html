@@ -250,6 +250,9 @@
   .sexbtn{font-family:inherit;font-size:12px;font-weight:700;color:var(--muted);background:var(--surface);
     border:1px solid var(--line);border-radius:6px;padding:3px 8px;cursor:pointer;transition:.1s;}
   .sexbtn.on{background:var(--primary);border-color:var(--primary);color:#fff;}
+  .subbtn{font-family:inherit;font-size:11px;font-weight:700;color:var(--muted);background:var(--surface);
+    border:1px solid var(--line);border-radius:6px;padding:3px 7px;cursor:pointer;flex-shrink:0;transition:.1s;}
+  .subbtn.on{background:#7a5cc4;border-color:#7a5cc4;color:#fff;}
   hr{border:none;border-top:1px solid var(--line);margin:18px 0 2px;}
   .notice{background:var(--surface-2);border:1px solid var(--line);border-left:3px solid var(--primary);
     border-radius:8px;padding:12px 14px;margin-bottom:16px;text-align:left;max-height:200px;overflow-y:auto;}
@@ -346,18 +349,20 @@
 <!-- ===== 관리자 명단 관리 ===== -->
 <div class="gate light" id="admin">
   <div class="card wide">
-    <div class="ahead"><h2>관리자</h2><button class="linklike2" id="adClose" style="color:var(--primary)">닫기</button></div>
+    <div class="ahead"><h2 id="adminTitle">관리자</h2><button class="linklike2" id="adClose" style="color:var(--primary)">닫기</button></div>
     <p class="ghint">여기에 등록된 이름으로만 로그인할 수 있습니다.</p>
     <label>공지사항 (로그인 화면에 표시)</label>
     <textarea id="noticeInput" placeholder="예) 이번 주 토요일 봉사는 오전 9시에 모입니다."></textarea>
     <button class="addbig" id="noticeSave" style="margin-top:8px">공지 저장</button>
     <div class="err" id="noticeMsg"></div>
     <hr/>
+    <div class="mainOnly">
     <label>봉사 요일 설정 (신청 가능한 요일)</label>
     <p class="ghint" style="margin:0 0 8px">켜진 요일만 달력에서 신청할 수 있어요. 누르면 바로 저장됩니다.</p>
     <div class="wdtoggle" id="wdToggle"></div>
     <div class="err" id="wdMsg"></div>
     <hr/>
+    </div>
     <label>행사 메모 표시</label>
     <p class="ghint" style="margin:0 0 8px">특정 날짜에 문구를 적으면 달력에 표시돼요. (예: 특별 집회)</p>
     <div class="noteform">
@@ -389,6 +394,7 @@
     <p class="ghint" id="asgSwapHint" style="margin:8px 0 0;display:none">💡 이름을 두 명 차례로 누르면 서로 자리가 바뀝니다.</p>
     <div class="asg-result" id="asgResult"></div>
     <button class="addbig" id="asgShare" style="display:none;margin-top:10px;background:#FEE500;color:#3A1D1D">카카오톡 등으로 공유</button>
+    <div class="mainOnly">
     <hr/>
     <label>신청 취소 관리</label>
     <p class="ghint" style="margin:0 0 8px">지원자의 신청을 골라 취소할 수 있어요.</p>
@@ -398,6 +404,7 @@
       <button class="nbtn" id="cxNext">▶</button>
     </div>
     <div class="rplist" id="cancelList"></div>
+    </div>
     <hr/>
     <label>봉사보고 확인</label>
     <div class="rpnav">
@@ -406,6 +413,7 @@
       <button class="nbtn" id="rpNext">▶</button>
     </div>
     <div class="rplist" id="rpAdminList"></div>
+    <div class="mainOnly">
     <hr/>
     <label>봉사자 추가</label>
     <div class="addmember">
@@ -415,6 +423,8 @@
     </div>
     <div class="err" id="amErr"></div>
     <div class="mlist" id="mlist"></div>
+    </div>
+    <div class="mainOnly">
     <hr/>
     <label>관리자 비밀번호 바꾸기 (해시 만들기)</label>
     <p class="ghint" style="margin:0 0 6px">새 비밀번호로 해시를 만든 뒤, 파일 상단 <code>ADMIN_PIN_HASH</code> 값을 그 해시로 교체하고 다시 올리면 됩니다.</p>
@@ -423,6 +433,7 @@
       <button id="hashGo">해시 만들기</button>
     </div>
     <div class="hashout" id="hashOut" style="display:none"></div>
+    </div>
   </div>
 </div>
 
@@ -438,7 +449,7 @@
     <div class="userbar" id="userbar" style="display:none">
       <span class="who"><b id="ubName"></b> 님<span class="adm" id="ubAdm" style="display:none">관리자</span></span>
       <span class="ubactions">
-        <button class="linklike2" id="ubAdmin" style="display:none">명단 관리</button>
+        <button class="linklike2" id="ubAdmin" style="display:none">관리자 메뉴</button>
         <button class="linklike2" id="ubLogout">로그아웃</button>
       </span>
     </div>
@@ -663,7 +674,7 @@ function makeDemo(){
   const k=(i)=>{const d=new Date(mon);d.setDate(d.getDate()+i);return ymd(d);};
   const dates={[k(3)]:[{name:"김봉사",ts:1}],[k(5)]:[{name:"이도움",ts:2},{name:"박나눔",ts:3}]};
   const fixed={6:[{name:"최주말",ts:4}]};
-  let roster={members:[{name:"김봉사",sex:"남"},{name:"이도움",sex:"여"},{name:"박나눔",sex:"남"},{name:"최주말",sex:"여"}],notice:"이번 주 토요일 봉사는 오전 9시에 모입니다.\n우천 시 실내에서 진행합니다.",activeDays:DEFAULT_ACTIVE.slice(),dayNotes:{}};
+  let roster={members:[{name:"김봉사",sex:"남"},{name:"이도움",sex:"여",sub:true},{name:"박나눔",sex:"남"},{name:"최주말",sex:"여"}],notice:"이번 주 토요일 봉사는 오전 9시에 모입니다.\n우천 시 실내에서 진행합니다.",activeDays:DEFAULT_ACTIVE.slice(),dayNotes:{}};
   let reports={};
   let assignments={};
   let cbM=()=>{},cbR=()=>{},cbRep=()=>{},cbAsg=()=>{};
@@ -707,8 +718,10 @@ function enterApp(){
   $("login").classList.remove("on"); $("admin").classList.remove("on");
   $("userbar").style.display="flex";
   $("ubName").textContent=state.isAdmin&&!state.me?"관리자":(state.me?state.me.name:"");
-  $("ubAdm").style.display=state.isAdmin?"inline":"none";
-  $("ubAdmin").style.display=state.isAdmin?"inline":"none";
+  const sub=isSubAdmin(), showAdm=state.isAdmin||sub;
+  $("ubAdm").style.display=showAdm?"inline":"none";
+  $("ubAdm").textContent=state.isAdmin?"관리자":(sub?"부관리자":"");
+  $("ubAdmin").style.display=showAdm?"inline":"none";
   backend.subscribeMonth(state.monthRef,render);
   const tw=new Date().getDay();
   state.selectedDay = isActiveWd(tw) ? {key:todayKey, wd:tw} : null;
@@ -750,9 +763,12 @@ $("toMember").onclick=()=>{$("adminForm").style.display="none";$("memberForm").s
 $("laGo").onclick=doLoginAdmin;
 $("laPin").addEventListener("keydown",e=>{if(e.key==="Enter")doLoginAdmin();});
 $("ubLogout").onclick=logout;
-$("ubAdmin").onclick=()=>{ if(state.isAdmin) openAdminPanel(); };
+$("ubAdmin").onclick=()=>{ if(state.isAdmin||isSubAdmin()) openAdminPanel(); };
 
 /* ---------------- 관리자 패널 ---------------- */
+function memberOf(name){ return (state.roster.members||[]).find(m=>m.name===name); }
+function isSubAdmin(){ return !!(state.me && (memberOf(state.me.name)||{}).sub); }
+function isAdminView(){ return state.isAdmin || isSubAdmin(); }
 function metaDoc(over){return Object.assign({members:state.roster.members||[],notice:state.roster.notice||"",activeDays:activeDays(),dayNotes:state.roster.dayNotes||{}},over||{});}
 function updateLoginNotice(){
   const n=(state.roster.notice||"").trim();
@@ -761,12 +777,19 @@ function updateLoginNotice(){
 }
 function openAdminPanel(){
   $("login").classList.remove("on"); $("admin").classList.add("on");
+  const main=state.isAdmin;
+  $("adminTitle").textContent = main ? "관리자" : "부관리자";
+  document.querySelectorAll(".mainOnly").forEach(el=>{ el.style.display = main ? "" : "none"; });
   $("amName").value="";$("amErr").textContent="";$("hashIn").value="";$("hashOut").style.display="none";
   $("noticeInput").value=state.roster.notice||"";$("noticeMsg").textContent="";
   state.adminRptMonth=reportTargetMonth();
   state.adminCancelMonth=monthKeyOf(new Date());
   $("asgDate").value=(state.selectedDay&&state.selectedDay.key)||todayKey;
   $("asgStart").value=$("asgStart").value||"10:00";
+  backend.subscribeMonth(state.monthRef, ()=>{
+    render();
+    if(isAdminView() && $("admin").classList.contains("on")){ renderCancelMgr(); renderAssignForm(); }
+  });
   renderRoster(); renderReports(); renderCancelMgr(); renderAssignForm();
 }
 /* ---------------- 전시대 봉사 배정 ---------------- */
@@ -1010,6 +1033,7 @@ function cancelGroups(month){
 }
 function renderCancelMgr(){
   const box=$("cancelList"); if(!box) return;
+  if(!state.isAdmin){ box.innerHTML=""; return; }
   if(!state.adminCancelMonth) state.adminCancelMonth=monthKeyOf(new Date());
   const month=state.adminCancelMonth;
   const ml=$("cancelMonthLabel"); if(ml) ml.textContent=monthLabel(month);
@@ -1045,12 +1069,12 @@ $("cancelList").addEventListener("click",async e=>{
   const allBtn=e.target.closest(".cxall");
   if(chip){
     const g=groups[+chip.dataset.g]; const it=g&&g.items[+chip.dataset.i]; if(!it) return;
-    if(!await appConfirm(`${g.name} 님의 "${it.when}" 신청을 취소할까요?`,{yesLabel:"취소합니다",requirePin:true})) return;
+    if(!await appConfirm(`${g.name} 님의 "${it.when}" 신청을 취소할까요?`,{yesLabel:"취소합니다",requirePin:state.isAdmin})) return;
     _optimisticRemove(it); render();
     try{ await _removeOne(it); }catch(err){ console.error(err); alert("취소에 실패했어요."); }
   }else if(allBtn){
     const g=groups[+allBtn.dataset.g]; if(!g) return;
-    if(!await appConfirm(`${g.name} 님의 신청 ${g.items.length}건을 모두 취소할까요?`,{yesLabel:"전체 취소",requirePin:true})) return;
+    if(!await appConfirm(`${g.name} 님의 신청 ${g.items.length}건을 모두 취소할까요?`,{yesLabel:"전체 취소",requirePin:state.isAdmin})) return;
     const items=g.items.slice();
     items.forEach(_optimisticRemove); render();
     for(const it of items){ try{ await _removeOne(it); }catch(err){ console.error(err); } }
@@ -1085,7 +1109,7 @@ function renderRoster(){
   renderDayNotes();
   const ms=(state.roster.members||[]).map((m,i)=>({m,i})).sort((a,b)=>a.m.name.localeCompare(b.m.name,"ko"));
   $("mlist").innerHTML = ms.length
-    ? ms.map(({m,i})=>`<div class="mrow"><span class="mn">${esc(m.name)}</span><span class="sexsel"><button class="sexbtn${m.sex==="남"?" on":""}" data-i="${i}" data-sex="남">남</button><button class="sexbtn${m.sex==="여"?" on":""}" data-i="${i}" data-sex="여">여</button></span><button class="x" data-i="${i}">삭제</button></div>`).join("")
+    ? ms.map(({m,i})=>`<div class="mrow"><span class="mn">${esc(m.name)}</span><span class="sexsel"><button class="sexbtn${m.sex==="남"?" on":""}" data-i="${i}" data-sex="남">남</button><button class="sexbtn${m.sex==="여"?" on":""}" data-i="${i}" data-sex="여">여</button></span><button class="subbtn${m.sub?" on":""}" data-sub="${i}">부관리자</button><button class="x" data-i="${i}">삭제</button></div>`).join("")
     : `<div class="none">등록된 이름이 없어요. 위에서 추가하세요.</div>`;
 }
 function renderDayNotes(){
@@ -1148,6 +1172,13 @@ $("mlist").addEventListener("click",async e=>{
     try{ await backend.saveRoster(metaDoc({members})); }catch(err){console.error(err);}
     return;
   }
+  const sb=e.target.closest(".subbtn");
+  if(sb){
+    const i=+sb.dataset.sub; const members=(state.roster.members||[]).map(m=>({...m}));
+    if(!members[i]) return; members[i].sub=!members[i].sub;
+    try{ await backend.saveRoster(metaDoc({members})); }catch(err){console.error(err);}
+    return;
+  }
   const b=e.target.closest(".x"); if(!b) return;
   const i=+b.dataset.i; const members=(state.roster.members||[]).slice(); members.splice(i,1);
   try{ await backend.saveRoster(metaDoc({members})); }catch(err){console.error(err);}
@@ -1195,7 +1226,7 @@ function render(){
     cal.appendChild(el);
   });
   renderDayPanel();
-  if(state.isAdmin && $("admin").classList.contains("on")) renderCancelMgr();
+  if(isAdminView() && $("admin").classList.contains("on")) renderCancelMgr();
 }
 
 /* ---------------- 선택 날짜 패널 ---------------- */
@@ -1318,12 +1349,12 @@ $("today").onclick=()=>{state.monthRef=new Date();state.selectedDay=null;backend
   });
   backend.subscribeReports(()=>{
     state.reportsReady=true;
-    if(state.isAdmin && $("admin").classList.contains("on")) renderReports();
+    if(isAdminView() && $("admin").classList.contains("on")) renderReports();
     checkReportPopup();
   });
   backend.subscribeAssign(()=>{
     render();
-    if(state.isAdmin && $("admin").classList.contains("on")) renderAssign();
+    if(isAdminView() && $("admin").classList.contains("on")) renderAssign();
   });
 })();
 </script>
