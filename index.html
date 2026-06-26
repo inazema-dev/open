@@ -243,8 +243,10 @@
   .addmember button:hover{background:var(--primary-d);}
   .mlist{margin-top:12px;display:flex;flex-direction:column;gap:6px;}
   .mrow{display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--line);
-    border-radius:8px;padding:9px 11px;font-size:14px;}
-  .mrow .mn{flex:1;font-weight:600;} .mrow .mp{font-size:11px;color:var(--muted);}
+    border-radius:8px;padding:9px 11px;font-size:14px;flex-wrap:wrap;}
+  .mrow .mn{flex:1 1 70px;font-weight:600;} .mrow .mp{font-size:11px;color:var(--muted);}
+  .grpsel{font-family:inherit;font-size:12px;font-weight:600;color:var(--ink);background:var(--surface);
+    border:1px solid var(--line);border-radius:6px;padding:3px 5px;flex-shrink:0;}
   .mrow .x{background:none;color:var(--rose);font-size:12.5px;font-weight:600;}
   .sexsel{display:inline-flex;gap:3px;flex-shrink:0;}
   .sexbtn{font-family:inherit;font-size:12px;font-weight:700;color:var(--muted);background:var(--surface);
@@ -253,6 +255,16 @@
   .subbtn{font-family:inherit;font-size:11px;font-weight:700;color:var(--muted);background:var(--surface);
     border:1px solid var(--line);border-radius:6px;padding:3px 7px;cursor:pointer;flex-shrink:0;transition:.1s;}
   .subbtn.on{background:#7a5cc4;border-color:#7a5cc4;color:#fff;}
+  .vtog{display:flex;gap:6px;margin-bottom:8px;}
+  .von{flex:1;font-family:inherit;font-size:13px;font-weight:700;color:var(--muted);background:var(--surface-2);
+    border:1px solid var(--line);border-radius:8px;padding:6px;cursor:pointer;transition:.1s;}
+  .von.on{background:var(--primary);border-color:var(--primary);color:#fff;}
+  .rpgh{font-size:13px;font-weight:800;color:var(--primary-d);margin:12px 0 6px;padding-bottom:3px;border-bottom:2px solid var(--primary-soft);display:flex;justify-content:space-between;align-items:baseline;}
+  .rpgh span{font-size:12px;font-weight:700;color:var(--muted);}
+  .rfilter{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .rfilter span{font-size:13px;font-weight:600;color:var(--muted);}
+  .rfilter select{flex:1;}
+  .grphd{font-size:13px;font-weight:800;color:var(--primary-d);margin:10px 0 5px;}
   hr{border:none;border-top:1px solid var(--line);margin:18px 0 2px;}
   .notice{background:var(--surface-2);border:1px solid var(--line);border-left:3px solid var(--primary);
     border-radius:8px;padding:12px 14px;margin-bottom:16px;text-align:left;max-height:200px;overflow-y:auto;}
@@ -412,6 +424,7 @@
       <span class="rpml" id="rpMonthLabel">—</span>
       <button class="nbtn" id="rpNext">▶</button>
     </div>
+    <div class="vtog"><button class="von on" id="rpvName">이름순</button><button class="von" id="rpvGrp">집단별</button></div>
     <div class="rplist" id="rpAdminList"></div>
     <div class="mainOnly">
     <hr/>
@@ -422,6 +435,7 @@
       <button id="amAdd">추가</button>
     </div>
     <div class="err" id="amErr"></div>
+    <div class="rfilter"><span>보기</span><select id="rosterFilter"><option value="all">전체 (가나다)</option><option value="grp">집단순</option><option value="사랑">사랑</option><option value="기쁨">기쁨</option><option value="평화">평화</option><option value="온화">온화</option><option value="친절">친절</option><option value="none">미지정</option></select></div>
     <div class="mlist" id="mlist"></div>
     </div>
     <div class="mainOnly">
@@ -546,6 +560,7 @@
    ========================================================================= */
 const WD=["일","월","화","수","목","금","토"];
 const DEFAULT_ACTIVE=[0,3,5,6];            // 기본 봉사 요일: 일0 수3 금5 토6
+const GROUPS=["사랑","기쁨","평화","온화","친절"]; // 소속 집단
 function activeDays(){const a=state.roster&&state.roster.activeDays;return Array.isArray(a)?a:DEFAULT_ACTIVE;}
 function isActiveWd(wd){return activeDays().includes(wd);}
 /* 대한민국 공휴일 (대체공휴일 포함). 음력 명절은 매년 양력 날짜가 바뀌므로
@@ -597,7 +612,7 @@ function monthGrid(ref){
 const state={
   monthRef:new Date(), dateData:{}, fixedData:{},
   roster:{members:[],notice:"",activeDays:DEFAULT_ACTIVE.slice(),dayNotes:{}},
-  reports:{}, assignments:{}, asgSel:null, reportsReady:false, reportChecked:false, reportMonth:null, adminRptMonth:null, adminCancelMonth:null,
+  reports:{}, assignments:{}, asgSel:null, rpGroupView:false, rosterFilter:"all", reportsReady:false, reportChecked:false, reportMonth:null, adminRptMonth:null, adminCancelMonth:null,
   me:null, isAdmin:false, selectedDay:null,
   mode:"demo", openDayKey:null, openDayWd:null, add:{dateKey:null,weekday:null,kind:"once"},
 };
@@ -674,7 +689,7 @@ function makeDemo(){
   const k=(i)=>{const d=new Date(mon);d.setDate(d.getDate()+i);return ymd(d);};
   const dates={[k(3)]:[{name:"김봉사",ts:1}],[k(5)]:[{name:"이도움",ts:2},{name:"박나눔",ts:3}]};
   const fixed={6:[{name:"최주말",ts:4}]};
-  let roster={members:[{name:"김봉사",sex:"남"},{name:"이도움",sex:"여",sub:true},{name:"박나눔",sex:"남"},{name:"최주말",sex:"여"}],notice:"이번 주 토요일 봉사는 오전 9시에 모입니다.\n우천 시 실내에서 진행합니다.",activeDays:DEFAULT_ACTIVE.slice(),dayNotes:{}};
+  let roster={members:[{name:"김봉사",sex:"남",group:"사랑"},{name:"이도움",sex:"여",sub:true,group:"기쁨"},{name:"박나눔",sex:"남",group:"평화"},{name:"최주말",sex:"여"}],notice:"이번 주 토요일 봉사는 오전 9시에 모입니다.\n우천 시 실내에서 진행합니다.",activeDays:DEFAULT_ACTIVE.slice(),dayNotes:{}};
   let reports={};
   let assignments={};
   let cbM=()=>{},cbR=()=>{},cbRep=()=>{},cbAsg=()=>{};
@@ -1085,18 +1100,33 @@ function renderReports(){
   if(!state.adminRptMonth) state.adminRptMonth=reportTargetMonth();
   const month=state.adminRptMonth;
   const ml=$("rpMonthLabel"); if(ml) ml.textContent=monthLabel(month);
+  if($("rpvName")) $("rpvName").classList.toggle("on",!state.rpGroupView);
+  if($("rpvGrp")) $("rpvGrp").classList.toggle("on",!!state.rpGroupView);
   const data=(state.reports&&state.reports[month])||{};
-  const members=(state.roster.members||[]).map(m=>m.name);
-  const names=Array.from(new Set([...members, ...Object.keys(data)])).sort((a,b)=>a.localeCompare(b,"ko"));
+  const memObjs=(state.roster.members||[]);
+  const groupOf={}; memObjs.forEach(m=>groupOf[m.name]=m.group||"");
+  const members=memObjs.map(m=>m.name);
+  const names=Array.from(new Set([...members, ...Object.keys(data)]));
   if(!names.length){ box.innerHTML=`<div class="none">등록된 봉사자가 없습니다.</div>`; return; }
   const done=names.filter(n=>data[n]).length;
-  box.innerHTML=`<div class="rpsum">제출 <b>${done}</b> / ${names.length}명</div>`+
-    names.map(n=>{
-      const r=data[n];
-      if(r) return `<div class="rprow"><span class="rpn">${esc(n)}</span><span class="rpv">시간 <b>${esc(r.hours||"-")}</b> · 연구 <b>${esc(String(r.studies??"")||"-")}</b></span></div>`;
-      return `<div class="rprow miss"><span class="rpn">${esc(n)}</span><span class="rpv">미제출</span></div>`;
-    }).join("");
+  const rowHtml=(n)=>{ const r=data[n];
+    return r ? `<div class="rprow"><span class="rpn">${esc(n)}</span><span class="rpv">시간 <b>${esc(r.hours||"-")}</b> · 연구 <b>${esc(String(r.studies??"")||"-")}</b></span></div>`
+             : `<div class="rprow miss"><span class="rpn">${esc(n)}</span><span class="rpv">미제출</span></div>`; };
+  let body="";
+  if(state.rpGroupView){
+    [...GROUPS,""].forEach(g=>{
+      const gn=names.filter(n=>(groupOf[n]||"")===g).sort((a,b)=>a.localeCompare(b,"ko"));
+      if(!gn.length) return;
+      const gdone=gn.filter(n=>data[n]).length;
+      body+=`<div class="rpgh">${g||"미지정"} <span>${gdone}/${gn.length}</span></div>`+gn.map(rowHtml).join("");
+    });
+  } else {
+    body=names.slice().sort((a,b)=>a.localeCompare(b,"ko")).map(rowHtml).join("");
+  }
+  box.innerHTML=`<div class="rpsum">제출 <b>${done}</b> / ${names.length}명</div>`+body;
 }
+$("rpvName").onclick=()=>{ state.rpGroupView=false; renderReports(); };
+$("rpvGrp").onclick=()=>{ state.rpGroupView=true; renderReports(); };
 $("noticeSave").onclick=async()=>{
   const text=$("noticeInput").value.trim();
   $("noticeMsg").style.color="var(--rose)";$("noticeMsg").textContent="";
@@ -1107,11 +1137,27 @@ $("noticeSave").onclick=async()=>{
 function renderRoster(){
   renderWdToggle();
   renderDayNotes();
-  const ms=(state.roster.members||[]).map((m,i)=>({m,i})).sort((a,b)=>a.m.name.localeCompare(b.m.name,"ko"));
-  $("mlist").innerHTML = ms.length
-    ? ms.map(({m,i})=>`<div class="mrow"><span class="mn">${esc(m.name)}</span><span class="sexsel"><button class="sexbtn${m.sex==="남"?" on":""}" data-i="${i}" data-sex="남">남</button><button class="sexbtn${m.sex==="여"?" on":""}" data-i="${i}" data-sex="여">여</button></span><button class="subbtn${m.sub?" on":""}" data-sub="${i}">부관리자</button><button class="x" data-i="${i}">삭제</button></div>`).join("")
-    : `<div class="none">등록된 이름이 없어요. 위에서 추가하세요.</div>`;
+  const all=(state.roster.members||[]).map((m,i)=>({m,i}));
+  if($("rosterFilter")) $("rosterFilter").value=state.rosterFilter||"all";
+  if(!all.length){ $("mlist").innerHTML=`<div class="none">등록된 이름이 없어요. 위에서 추가하세요.</div>`; return; }
+  const rowOf=({m,i})=>`<div class="mrow"><span class="mn">${esc(m.name)}</span><span class="sexsel"><button class="sexbtn${m.sex==="남"?" on":""}" data-i="${i}" data-sex="남">남</button><button class="sexbtn${m.sex==="여"?" on":""}" data-i="${i}" data-sex="여">여</button></span><select class="grpsel" data-grp="${i}"><option value="">집단</option>${GROUPS.map(g=>`<option value="${g}"${m.group===g?" selected":""}>${g}</option>`).join("")}</select><button class="subbtn${m.sub?" on":""}" data-sub="${i}">부관리자</button><button class="x" data-i="${i}">삭제</button></div>`;
+  const f=state.rosterFilter||"all";
+  const gIdx=g=>{ const k=GROUPS.indexOf(g||""); return k<0?99:k; };
+  let html="";
+  if(f==="grp"){
+    const sorted=all.slice().sort((a,b)=>(gIdx(a.m.group)-gIdx(b.m.group))||a.m.name.localeCompare(b.m.name,"ko"));
+    let cur=null;
+    sorted.forEach(o=>{ const g=o.m.group||""; if(g!==cur){ cur=g; html+=`<div class="grphd">${g||"미지정"}</div>`; } html+=rowOf(o); });
+  } else {
+    let arr=all.slice();
+    if(f==="none") arr=arr.filter(o=>!o.m.group);
+    else if(f!=="all") arr=arr.filter(o=>o.m.group===f);
+    arr.sort((a,b)=>a.m.name.localeCompare(b.m.name,"ko"));
+    html=arr.map(rowOf).join("");
+  }
+  $("mlist").innerHTML = html || `<div class="none">해당 집단의 봉사자가 없습니다.</div>`;
 }
+$("rosterFilter").onchange=()=>{ state.rosterFilter=$("rosterFilter").value; renderRoster(); };
 function renderDayNotes(){
   const box=$("noteList"); if(!box) return;
   const notes=state.roster.dayNotes||{};
@@ -1181,6 +1227,12 @@ $("mlist").addEventListener("click",async e=>{
   }
   const b=e.target.closest(".x"); if(!b) return;
   const i=+b.dataset.i; const members=(state.roster.members||[]).slice(); members.splice(i,1);
+  try{ await backend.saveRoster(metaDoc({members})); }catch(err){console.error(err);}
+});
+$("mlist").addEventListener("change",async e=>{
+  const g=e.target.closest(".grpsel"); if(!g) return;
+  const i=+g.dataset.grp; const members=(state.roster.members||[]).map(m=>({...m}));
+  if(!members[i]) return; members[i].group=g.value;
   try{ await backend.saveRoster(metaDoc({members})); }catch(err){console.error(err);}
 });
 $("hashGo").onclick=async()=>{
