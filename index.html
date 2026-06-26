@@ -269,6 +269,9 @@
   .rfilter span{font-size:13px;font-weight:700;color:var(--primary-d);flex-shrink:0;}
   .rfilter select{flex:1 1 120px;font-family:inherit;font-size:13px;font-weight:600;padding:5px 6px;border-radius:6px;border:1px solid var(--line);background:var(--surface);}
   .grphd{font-size:13px;font-weight:800;color:var(--primary-d);margin:10px 0 5px;}
+  .rcount{font-size:13.5px;color:var(--muted);margin-bottom:8px;padding:0 2px;}
+  .rcount b{color:var(--ink);font-size:15px;}
+  .rcount span{font-size:12px;}
   .permgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   .permopt{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:9px 11px;cursor:pointer;}
   .permopt input{width:17px;height:17px;accent-color:var(--primary);}
@@ -453,6 +456,7 @@
     </div>
     <div class="err" id="amErr"></div>
     <div class="rfilter"><select id="rosterSex"><option value="all">남녀 전체</option><option value="남">남자</option><option value="여">여자</option></select><select id="rosterRole"><option value="all">직책 전체</option><option value="장로">장로</option><option value="봉종">봉종</option><option value="정파">정파</option><option value="특파">특파</option></select><select id="rosterFilter"><option value="all">전체 (가나다)</option><option value="grp">집단순</option><option value="사랑">사랑</option><option value="기쁨">기쁨</option><option value="평화">평화</option><option value="온화">온화</option><option value="친절">친절</option><option value="none">집단 미지정</option></select></div>
+    <div class="rcount" id="rosterCount"></div>
     <div class="mlist" id="mlist"></div>
     </div>
     <div class="mainOnly">
@@ -1198,7 +1202,7 @@ function renderRoster(){
   if($("rosterFilter")) $("rosterFilter").value=state.rosterFilter||"all";
   if($("rosterSex")) $("rosterSex").value=state.rosterSex||"all";
   if($("rosterRole")) $("rosterRole").value=state.rosterRole||"all";
-  if(!all.length){ $("mlist").innerHTML=`<div class="none">등록된 이름이 없어요. 위에서 추가하세요.</div>`; return; }
+  if(!all.length){ if($("rosterCount")) $("rosterCount").innerHTML=`총원 <b>0명</b>`; $("mlist").innerHTML=`<div class="none">등록된 이름이 없어요. 위에서 추가하세요.</div>`; return; }
   const rowOf=({m,i})=>`<div class="mrow"><span class="mn">${esc(m.name)}</span><span class="sexsel"><button class="sexbtn${m.sex==="남"?" on":""}" data-i="${i}" data-sex="남">남</button><button class="sexbtn${m.sex==="여"?" on":""}" data-i="${i}" data-sex="여">여</button></span><select class="grpsel" data-grp="${i}"><option value="">집단</option>${GROUPS.map(g=>`<option value="${g}"${m.group===g?" selected":""}>${g}</option>`).join("")}</select><span class="rolesel">${ROLES.map(r=>`<button class="rolebtn${(m.roles||[]).includes(r)?" on":""}" data-role="${r}" data-ri="${i}">${r}</button>`).join("")}</span><button class="subbtn${m.sub?" on":""}" data-sub="${i}">부관리자</button><button class="x" data-i="${i}">삭제</button></div>`;
   const sx=state.rosterSex||"all";
   let base = sx==="all" ? all.slice() : all.filter(o=>(o.m.sex||"")===sx);
@@ -1206,18 +1210,24 @@ function renderRoster(){
   if(rl!=="all") base=base.filter(o=>(o.m.roles||[]).includes(rl));
   const f=state.rosterFilter||"all";
   const gIdx=g=>{ const k=GROUPS.indexOf(g||""); return k<0?99:k; };
-  let html="";
+  let html="", shown=0;
   if(f==="grp"){
     const sorted=base.slice().sort((a,b)=>(gIdx(a.m.group)-gIdx(b.m.group))||a.m.name.localeCompare(b.m.name,"ko"));
     let cur=null;
     sorted.forEach(o=>{ const g=o.m.group||""; if(g!==cur){ cur=g; html+=`<div class="grphd">${g||"미지정"}</div>`; } html+=rowOf(o); });
+    shown=sorted.length;
   } else {
     let arr=base.slice();
     if(f==="none") arr=arr.filter(o=>!o.m.group);
     else if(f!=="all") arr=arr.filter(o=>o.m.group===f);
     arr.sort((a,b)=>a.m.name.localeCompare(b.m.name,"ko"));
     html=arr.map(rowOf).join("");
+    shown=arr.length;
   }
+  const total=all.length, filtered=(sx!=="all"||rl!=="all"||f!=="all");
+  if($("rosterCount")) $("rosterCount").innerHTML = filtered
+    ? `<b>${shown}명</b> <span>(전체 ${total}명)</span>`
+    : `총원 <b>${total}명</b>`;
   $("mlist").innerHTML = html || `<div class="none">해당 조건의 봉사자가 없습니다.</div>`;
 }
 $("rosterFilter").onchange=()=>{ state.rosterFilter=$("rosterFilter").value; renderRoster(); };
