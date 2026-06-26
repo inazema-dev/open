@@ -272,6 +272,11 @@
   .rcount{font-size:13.5px;color:var(--muted);margin-bottom:8px;padding:0 2px;}
   .rcount b{color:var(--ink);font-size:15px;}
   .rcount span{font-size:12px;}
+  .mrow.ro .rtags{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
+  .rtag{font-size:11.5px;font-weight:700;border-radius:6px;padding:3px 8px;}
+  .rtag.sx{background:var(--primary-soft);color:var(--primary-d);}
+  .rtag.gp{background:#ede7fa;color:#5a3da8;}
+  .rtag.rl{background:#e0f2ec;color:#1f8a70;}
   .permgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   .permopt{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:9px 11px;cursor:pointer;}
   .permopt input{width:17px;height:17px;accent-color:var(--primary);}
@@ -455,6 +460,10 @@
       <button id="amAdd">추가</button>
     </div>
     <div class="err" id="amErr"></div>
+    </div>
+    <div class="subArea" data-area="roster">
+    <hr/>
+    <label>봉사자 명단</label>
     <div class="rfilter"><select id="rosterSex"><option value="all">남녀 전체</option><option value="남">남자</option><option value="여">여자</option></select><select id="rosterRole"><option value="all">직책 전체</option><option value="장로">장로</option><option value="봉종">봉종</option><option value="정파">정파</option><option value="특파">특파</option></select><select id="rosterFilter"><option value="all">전체 (가나다)</option><option value="grp">집단순</option><option value="사랑">사랑</option><option value="기쁨">기쁨</option><option value="평화">평화</option><option value="온화">온화</option><option value="친절">친절</option><option value="none">집단 미지정</option></select></div>
     <div class="rcount" id="rosterCount"></div>
     <div class="mlist" id="mlist"></div>
@@ -462,12 +471,13 @@
     <div class="mainOnly">
     <hr/>
     <label>부관리자 허용 영역</label>
-    <p class="ghint" style="margin:0 0 8px">체크한 영역만 부관리자가 사용할 수 있어요. (명단·요일·신청취소·비밀번호는 메인 관리자 전용)</p>
+    <p class="ghint" style="margin:0 0 8px">체크한 영역만 부관리자가 사용할 수 있어요. 명단 보기는 <b>필터 조회만</b> 가능하고 집단·직책·성별 지정은 불가합니다. (요일·신청취소·봉사자 추가·비밀번호는 메인 관리자 전용)</p>
     <div class="permgrid" id="permGrid">
       <label class="permopt"><input type="checkbox" data-perm="notice" /> 공지사항</label>
       <label class="permopt"><input type="checkbox" data-perm="notes" /> 행사 메모</label>
       <label class="permopt"><input type="checkbox" data-perm="asg" /> 전시대 배정</label>
       <label class="permopt"><input type="checkbox" data-perm="report" /> 봉사보고 확인</label>
+      <label class="permopt"><input type="checkbox" data-perm="roster" /> 봉사자 명단 보기</label>
     </div>
     </div>
     <div class="mainOnly">
@@ -819,7 +829,7 @@ $("ubAdmin").onclick=()=>{ if(state.isAdmin||isSubAdmin()) openAdminPanel(); };
 function memberOf(name){ return (state.roster.members||[]).find(m=>m.name===name); }
 function isSubAdmin(){ return !!(state.me && (memberOf(state.me.name)||{}).sub); }
 function isAdminView(){ return state.isAdmin || isSubAdmin(); }
-function subPerms(){ const p=(state.roster&&state.roster.subPerms)||{}; return {notice:p.notice!==false, notes:p.notes!==false, asg:p.asg!==false, report:p.report!==false}; }
+function subPerms(){ const p=(state.roster&&state.roster.subPerms)||{}; return {notice:p.notice!==false, notes:p.notes!==false, asg:p.asg!==false, report:p.report!==false, roster:p.roster===true}; }
 function metaDoc(over){return Object.assign({members:state.roster.members||[],notice:state.roster.notice||"",activeDays:activeDays(),dayNotes:state.roster.dayNotes||{},subPerms:state.roster.subPerms||{}},over||{});}
 function updateLoginNotice(){
   const n=(state.roster.notice||"").trim();
@@ -1203,7 +1213,9 @@ function renderRoster(){
   if($("rosterSex")) $("rosterSex").value=state.rosterSex||"all";
   if($("rosterRole")) $("rosterRole").value=state.rosterRole||"all";
   if(!all.length){ if($("rosterCount")) $("rosterCount").innerHTML=`총원 <b>0명</b>`; $("mlist").innerHTML=`<div class="none">등록된 이름이 없어요. 위에서 추가하세요.</div>`; return; }
-  const rowOf=({m,i})=>`<div class="mrow"><span class="mn">${esc(m.name)}</span><span class="sexsel"><button class="sexbtn${m.sex==="남"?" on":""}" data-i="${i}" data-sex="남">남</button><button class="sexbtn${m.sex==="여"?" on":""}" data-i="${i}" data-sex="여">여</button></span><select class="grpsel" data-grp="${i}"><option value="">집단</option>${GROUPS.map(g=>`<option value="${g}"${m.group===g?" selected":""}>${g}</option>`).join("")}</select><span class="rolesel">${ROLES.map(r=>`<button class="rolebtn${(m.roles||[]).includes(r)?" on":""}" data-role="${r}" data-ri="${i}">${r}</button>`).join("")}</span><button class="subbtn${m.sub?" on":""}" data-sub="${i}">부관리자</button><button class="x" data-i="${i}">삭제</button></div>`;
+  const rowEdit=({m,i})=>`<div class="mrow"><span class="mn">${esc(m.name)}</span><span class="sexsel"><button class="sexbtn${m.sex==="남"?" on":""}" data-i="${i}" data-sex="남">남</button><button class="sexbtn${m.sex==="여"?" on":""}" data-i="${i}" data-sex="여">여</button></span><select class="grpsel" data-grp="${i}"><option value="">집단</option>${GROUPS.map(g=>`<option value="${g}"${m.group===g?" selected":""}>${g}</option>`).join("")}</select><span class="rolesel">${ROLES.map(r=>`<button class="rolebtn${(m.roles||[]).includes(r)?" on":""}" data-role="${r}" data-ri="${i}">${r}</button>`).join("")}</span><button class="subbtn${m.sub?" on":""}" data-sub="${i}">부관리자</button><button class="x" data-i="${i}">삭제</button></div>`;
+  const rowView=({m})=>`<div class="mrow ro"><span class="mn">${esc(m.name)}</span><span class="rtags">${m.sex?`<span class="rtag sx">${esc(m.sex)}</span>`:""}${m.group?`<span class="rtag gp">${esc(m.group)}</span>`:""}${(m.roles||[]).map(r=>`<span class="rtag rl">${esc(r)}</span>`).join("")}</span></div>`;
+  const rowOf = state.isAdmin ? rowEdit : rowView;
   const sx=state.rosterSex||"all";
   let base = sx==="all" ? all.slice() : all.filter(o=>(o.m.sex||"")===sx);
   const rl=state.rosterRole||"all";
@@ -1286,6 +1298,7 @@ $("amAdd").onclick=async()=>{
 };
 $("amName").addEventListener("keydown",e=>{if(e.key==="Enter")$("amAdd").click();});
 $("mlist").addEventListener("click",async e=>{
+  if(!state.isAdmin) return;
   const sx=e.target.closest(".sexbtn");
   if(sx){
     const i=+sx.dataset.i; const members=(state.roster.members||[]).map(m=>({...m}));
@@ -1317,6 +1330,7 @@ $("mlist").addEventListener("click",async e=>{
   try{ await backend.saveRoster(metaDoc({members})); }catch(err){console.error(err);}
 });
 $("mlist").addEventListener("change",async e=>{
+  if(!state.isAdmin) return;
   const g=e.target.closest(".grpsel"); if(!g) return;
   const i=+g.dataset.grp; const members=(state.roster.members||[]).map(m=>({...m}));
   if(!members[i]) return; members[i].group=g.value;
