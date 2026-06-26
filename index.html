@@ -255,15 +255,19 @@
   .subbtn{font-family:inherit;font-size:11px;font-weight:700;color:var(--muted);background:var(--surface);
     border:1px solid var(--line);border-radius:6px;padding:3px 7px;cursor:pointer;flex-shrink:0;transition:.1s;}
   .subbtn.on{background:#7a5cc4;border-color:#7a5cc4;color:#fff;}
+  .rolesel{display:inline-flex;gap:3px;flex-wrap:wrap;flex-shrink:0;}
+  .rolebtn{font-family:inherit;font-size:11px;font-weight:700;color:var(--muted);background:var(--surface);
+    border:1px solid var(--line);border-radius:6px;padding:3px 6px;cursor:pointer;transition:.1s;}
+  .rolebtn.on{background:#1f8a70;border-color:#1f8a70;color:#fff;}
   .vtog{display:flex;gap:6px;margin-bottom:8px;}
   .von{flex:1;font-family:inherit;font-size:13px;font-weight:700;color:var(--muted);background:var(--surface-2);
     border:1px solid var(--line);border-radius:8px;padding:6px;cursor:pointer;transition:.1s;}
   .von.on{background:var(--primary);border-color:var(--primary);color:#fff;}
   .rpgh{font-size:13px;font-weight:800;color:var(--primary-d);margin:12px 0 6px;padding-bottom:3px;border-bottom:2px solid var(--primary-soft);display:flex;justify-content:space-between;align-items:baseline;}
   .rpgh span{font-size:12px;font-weight:700;color:var(--muted);}
-  .rfilter{display:flex;align-items:center;gap:8px;margin-bottom:10px;background:var(--primary-soft);border:1px solid var(--primary);border-radius:8px;padding:7px 10px;}
+  .rfilter{display:flex;align-items:center;gap:8px;margin-bottom:10px;background:var(--primary-soft);border:1px solid var(--primary);border-radius:8px;padding:7px 10px;flex-wrap:wrap;}
   .rfilter span{font-size:13px;font-weight:700;color:var(--primary-d);flex-shrink:0;}
-  .rfilter select{flex:1;font-family:inherit;font-size:13px;font-weight:600;padding:5px 6px;border-radius:6px;border:1px solid var(--line);background:var(--surface);}
+  .rfilter select{flex:1 1 120px;font-family:inherit;font-size:13px;font-weight:600;padding:5px 6px;border-radius:6px;border:1px solid var(--line);background:var(--surface);}
   .grphd{font-size:13px;font-weight:800;color:var(--primary-d);margin:10px 0 5px;}
   .permgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   .permopt{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:9px 11px;cursor:pointer;}
@@ -448,7 +452,7 @@
       <button id="amAdd">추가</button>
     </div>
     <div class="err" id="amErr"></div>
-    <div class="rfilter"><span>집단 보기</span><select id="rosterFilter"><option value="all">전체 (가나다)</option><option value="grp">집단순</option><option value="사랑">사랑</option><option value="기쁨">기쁨</option><option value="평화">평화</option><option value="온화">온화</option><option value="친절">친절</option><option value="none">미지정</option></select></div>
+    <div class="rfilter"><select id="rosterSex"><option value="all">남녀 전체</option><option value="남">남자</option><option value="여">여자</option></select><select id="rosterRole"><option value="all">직책 전체</option><option value="장로">장로</option><option value="봉종">봉종</option><option value="정파">정파</option><option value="특파">특파</option></select><select id="rosterFilter"><option value="all">전체 (가나다)</option><option value="grp">집단순</option><option value="사랑">사랑</option><option value="기쁨">기쁨</option><option value="평화">평화</option><option value="온화">온화</option><option value="친절">친절</option><option value="none">집단 미지정</option></select></div>
     <div class="mlist" id="mlist"></div>
     </div>
     <div class="mainOnly">
@@ -585,6 +589,7 @@
 const WD=["일","월","화","수","목","금","토"];
 const DEFAULT_ACTIVE=[0,3,5,6];            // 기본 봉사 요일: 일0 수3 금5 토6
 const GROUPS=["사랑","기쁨","평화","온화","친절"]; // 소속 집단
+const ROLES=["장로","봉종","정파","특파"];          // 직책 (한 명당 최대 2개)
 function activeDays(){const a=state.roster&&state.roster.activeDays;return Array.isArray(a)?a:DEFAULT_ACTIVE;}
 function isActiveWd(wd){return activeDays().includes(wd);}
 /* 대한민국 공휴일 (대체공휴일 포함). 음력 명절은 매년 양력 날짜가 바뀌므로
@@ -636,7 +641,7 @@ function monthGrid(ref){
 const state={
   monthRef:new Date(), dateData:{}, fixedData:{},
   roster:{members:[],notice:"",activeDays:DEFAULT_ACTIVE.slice(),dayNotes:{}},
-  reports:{}, assignments:{}, asgSel:null, rpGroupView:false, rosterFilter:"all", reportsReady:false, reportChecked:false, reportMonth:null, adminRptMonth:null, adminCancelMonth:null,
+  reports:{}, assignments:{}, asgSel:null, rpGroupView:false, rosterFilter:"all", rosterSex:"all", rosterRole:"all", reportsReady:false, reportChecked:false, reportPresent:false, reportMonth:null, adminRptMonth:null, adminCancelMonth:null,
   me:null, isAdmin:false, selectedDay:null,
   mode:"demo", openDayKey:null, openDayWd:null, add:{dateKey:null,weekday:null,kind:"once"},
 };
@@ -714,7 +719,7 @@ function makeDemo(){
   const k=(i)=>{const d=new Date(mon);d.setDate(d.getDate()+i);return ymd(d);};
   const dates={[k(3)]:[{name:"김봉사",ts:1}],[k(5)]:[{name:"이도움",ts:2},{name:"박나눔",ts:3}]};
   const fixed={6:[{name:"최주말",ts:4}]};
-  let roster={members:[{name:"김봉사",sex:"남",group:"사랑"},{name:"이도움",sex:"여",sub:true,group:"기쁨"},{name:"박나눔",sex:"남",group:"평화"},{name:"최주말",sex:"여"}],notice:"이번 주 토요일 봉사는 오전 9시에 모입니다.\n우천 시 실내에서 진행합니다.",activeDays:DEFAULT_ACTIVE.slice(),dayNotes:{}};
+  let roster={members:[{name:"김봉사",sex:"남",group:"사랑",roles:["장로"]},{name:"이도움",sex:"여",sub:true,group:"기쁨"},{name:"박나눔",sex:"남",group:"평화",roles:["봉종","특파"]},{name:"최주말",sex:"여"}],notice:"이번 주 토요일 봉사는 오전 9시에 모입니다.\n우천 시 실내에서 진행합니다.",activeDays:DEFAULT_ACTIVE.slice(),dayNotes:{}};
   let reports={};
   let assignments={};
   let cbM=()=>{},cbR=()=>{},cbRep=()=>{},cbAsg=()=>{};
@@ -997,10 +1002,18 @@ function reportTargetMonth(){return prevMonthKey();}   // 직전 달을 보고
 function myReport(month){const r=state.reports&&state.reports[month];return (r&&state.me)?r[state.me.name]:null;}
 function hasReported(month){return !!myReport(month);}
 function checkReportPopup(){
-  if(!state.me || state.reportChecked || !state.reportsReady) return;
-  state.reportChecked=true;
+  if(!state.me || !state.reportsReady) return;
   const month=reportTargetMonth();
-  if(!hasReported(month)) openReport(month);
+  const reported=hasReported(month);
+  if(!state.reportChecked){            // 로그인 후 최초 1회
+    state.reportChecked=true;
+    state.reportPresent=reported;
+    if(!reported) openReport(month);
+    return;
+  }
+  // 접속 중 실시간: 제출돼 있던 보고가 삭제되면 다시 팝업
+  if(state.reportPresent && !reported && !$("reportScrim").classList.contains("on")) openReport(month);
+  state.reportPresent=reported;
 }
 function openReport(month){
   state.reportMonth=month;
@@ -1183,25 +1196,33 @@ function renderRoster(){
   renderDayNotes();
   const all=(state.roster.members||[]).map((m,i)=>({m,i}));
   if($("rosterFilter")) $("rosterFilter").value=state.rosterFilter||"all";
+  if($("rosterSex")) $("rosterSex").value=state.rosterSex||"all";
+  if($("rosterRole")) $("rosterRole").value=state.rosterRole||"all";
   if(!all.length){ $("mlist").innerHTML=`<div class="none">등록된 이름이 없어요. 위에서 추가하세요.</div>`; return; }
-  const rowOf=({m,i})=>`<div class="mrow"><span class="mn">${esc(m.name)}</span><span class="sexsel"><button class="sexbtn${m.sex==="남"?" on":""}" data-i="${i}" data-sex="남">남</button><button class="sexbtn${m.sex==="여"?" on":""}" data-i="${i}" data-sex="여">여</button></span><select class="grpsel" data-grp="${i}"><option value="">집단</option>${GROUPS.map(g=>`<option value="${g}"${m.group===g?" selected":""}>${g}</option>`).join("")}</select><button class="subbtn${m.sub?" on":""}" data-sub="${i}">부관리자</button><button class="x" data-i="${i}">삭제</button></div>`;
+  const rowOf=({m,i})=>`<div class="mrow"><span class="mn">${esc(m.name)}</span><span class="sexsel"><button class="sexbtn${m.sex==="남"?" on":""}" data-i="${i}" data-sex="남">남</button><button class="sexbtn${m.sex==="여"?" on":""}" data-i="${i}" data-sex="여">여</button></span><select class="grpsel" data-grp="${i}"><option value="">집단</option>${GROUPS.map(g=>`<option value="${g}"${m.group===g?" selected":""}>${g}</option>`).join("")}</select><span class="rolesel">${ROLES.map(r=>`<button class="rolebtn${(m.roles||[]).includes(r)?" on":""}" data-role="${r}" data-ri="${i}">${r}</button>`).join("")}</span><button class="subbtn${m.sub?" on":""}" data-sub="${i}">부관리자</button><button class="x" data-i="${i}">삭제</button></div>`;
+  const sx=state.rosterSex||"all";
+  let base = sx==="all" ? all.slice() : all.filter(o=>(o.m.sex||"")===sx);
+  const rl=state.rosterRole||"all";
+  if(rl!=="all") base=base.filter(o=>(o.m.roles||[]).includes(rl));
   const f=state.rosterFilter||"all";
   const gIdx=g=>{ const k=GROUPS.indexOf(g||""); return k<0?99:k; };
   let html="";
   if(f==="grp"){
-    const sorted=all.slice().sort((a,b)=>(gIdx(a.m.group)-gIdx(b.m.group))||a.m.name.localeCompare(b.m.name,"ko"));
+    const sorted=base.slice().sort((a,b)=>(gIdx(a.m.group)-gIdx(b.m.group))||a.m.name.localeCompare(b.m.name,"ko"));
     let cur=null;
     sorted.forEach(o=>{ const g=o.m.group||""; if(g!==cur){ cur=g; html+=`<div class="grphd">${g||"미지정"}</div>`; } html+=rowOf(o); });
   } else {
-    let arr=all.slice();
+    let arr=base.slice();
     if(f==="none") arr=arr.filter(o=>!o.m.group);
     else if(f!=="all") arr=arr.filter(o=>o.m.group===f);
     arr.sort((a,b)=>a.m.name.localeCompare(b.m.name,"ko"));
     html=arr.map(rowOf).join("");
   }
-  $("mlist").innerHTML = html || `<div class="none">해당 집단의 봉사자가 없습니다.</div>`;
+  $("mlist").innerHTML = html || `<div class="none">해당 조건의 봉사자가 없습니다.</div>`;
 }
 $("rosterFilter").onchange=()=>{ state.rosterFilter=$("rosterFilter").value; renderRoster(); };
+$("rosterSex").onchange=()=>{ state.rosterSex=$("rosterSex").value; renderRoster(); };
+$("rosterRole").onchange=()=>{ state.rosterRole=$("rosterRole").value; renderRoster(); };
 function renderDayNotes(){
   const box=$("noteList"); if(!box) return;
   const notes=state.roster.dayNotes||{};
@@ -1266,6 +1287,18 @@ $("mlist").addEventListener("click",async e=>{
   if(sb){
     const i=+sb.dataset.sub; const members=(state.roster.members||[]).map(m=>({...m}));
     if(!members[i]) return; members[i].sub=!members[i].sub;
+    try{ await backend.saveRoster(metaDoc({members})); }catch(err){console.error(err);}
+    return;
+  }
+  const rb=e.target.closest(".rolebtn");
+  if(rb){
+    const i=+rb.dataset.ri, role=rb.dataset.role;
+    const members=(state.roster.members||[]).map(m=>({...m,roles:[...(m.roles||[])]}));
+    if(!members[i]) return;
+    const arr=members[i].roles, idx=arr.indexOf(role);
+    if(idx>=0) arr.splice(idx,1);
+    else { if(arr.length>=2) return; arr.push(role); }
+    members[i].roles=arr;
     try{ await backend.saveRoster(metaDoc({members})); }catch(err){console.error(err);}
     return;
   }
