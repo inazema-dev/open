@@ -699,8 +699,8 @@ function makeLive(fs,db){
   }
   function subscribeRoster(onChange){
     return onSnapshot(doc(db,"meta","roster"),snap=>{
-      if(snap.exists()){const d=snap.data();state.roster={members:d.members||[],notice:d.notice||"",activeDays:Array.isArray(d.activeDays)?d.activeDays:DEFAULT_ACTIVE.slice(),dayNotes:d.dayNotes||{}};}
-      else state.roster={members:[],notice:"",activeDays:DEFAULT_ACTIVE.slice(),dayNotes:{}};
+      if(snap.exists()){const d=snap.data();state.roster={members:d.members||[],notice:d.notice||"",activeDays:Array.isArray(d.activeDays)?d.activeDays:DEFAULT_ACTIVE.slice(),dayNotes:d.dayNotes||{},subPerms:d.subPerms||{}};}
+      else state.roster={members:[],notice:"",activeDays:DEFAULT_ACTIVE.slice(),dayNotes:{},subPerms:{}};
       onChange&&onChange();
     });
   }
