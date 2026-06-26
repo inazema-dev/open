@@ -290,7 +290,9 @@
   .rpml{font-size:14px;font-weight:700;color:var(--ink);}
   .rplist{display:flex;flex-direction:column;}
   .rpsum{font-size:12.5px;color:var(--muted);margin-bottom:6px;}
-  .rprow{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:8px 4px;border-top:1px solid var(--line);}
+  .rprow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 4px;border-top:1px solid var(--line);}
+  .rprow .rpn{flex:1;}
+  .rpx{flex-shrink:0;background:none;border:none;color:var(--rose);font-size:18px;font-weight:700;line-height:1;cursor:pointer;padding:0 4px;}
   .rprow:first-of-type{border-top:none;}
   .rpn{font-size:14px;font-weight:600;color:var(--ink);}
   .rpv{font-size:12.5px;color:var(--muted);text-align:right;}
@@ -666,7 +668,7 @@ async function initBackend(){
   }catch(e){ console.warn("Firebase 실패 → 데모",e); return makeDemo(); }
 }
 function makeLive(fs,db){
-  const {collection,doc,getDoc,setDoc,updateDoc,onSnapshot,query,where,documentId,arrayUnion}=fs;
+  const {collection,doc,getDoc,setDoc,updateDoc,onSnapshot,query,where,documentId,arrayUnion,deleteField,FieldPath}=fs;
   let monthSubs=[];
   const clearMonth=()=>{monthSubs.forEach(u=>u());monthSubs=[];};
   function subscribeMonth(monthRef,onChange){
@@ -691,6 +693,7 @@ function makeLive(fs,db){
     });
   }
   const saveReport=(month,name,data)=>setDoc(doc(db,"meta","reports"),{[month]:{[name]:data}},{merge:true});
+  const deleteReport=(month,name)=>updateDoc(doc(db,"meta","reports"),new FieldPath(month,name),deleteField());
   function subscribeAssign(onChange){
     return onSnapshot(doc(db,"meta","assignments"),snap=>{
       state.assignments = snap.exists() ? (snap.data()||{}) : {};
@@ -702,7 +705,7 @@ function makeLive(fs,db){
     if(c.exists())await updateDoc(r,{signups:arrayUnion(e)});else await setDoc(r,{signups:[e]});}
   async function rem(coll,id,e){const r=doc(db,coll,id);const c=await getDoc(r);if(!c.exists())return;
     await setDoc(r,{signups:(c.data().signups||[]).filter(s=>!(s.name===e.name&&s.ts===e.ts))});}
-  return {kind:"live",subscribeMonth,subscribeRoster,saveRoster,subscribeReports,saveReport,subscribeAssign,saveAssign,stop:clearMonth,
+  return {kind:"live",subscribeMonth,subscribeRoster,saveRoster,subscribeReports,saveReport,deleteReport,subscribeAssign,saveAssign,stop:clearMonth,
     addDate:(k,e)=>add("dates",k,e),removeDate:(k,e)=>rem("dates",k,e),
     addFixed:(w,e)=>add("recurring",String(w),e),removeFixed:(w,e)=>rem("recurring",String(w),e)};
 }
@@ -725,6 +728,7 @@ function makeDemo(){
     saveRoster:(r)=>{roster=JSON.parse(JSON.stringify(r));pushR();},
     subscribeReports:(fn)=>{cbRep=fn;pushRep();return ()=>{};},
     saveReport:(month,name,data)=>{ (reports[month] ||= {})[name]={...data}; pushRep(); return Promise.resolve(); },
+    deleteReport:(month,name)=>{ if(reports[month]) delete reports[month][name]; pushRep(); return Promise.resolve(); },
     subscribeAssign:(fn)=>{cbAsg=fn;pushAsg();return ()=>{};},
     saveAssign:(dateKey,data)=>{ assignments[dateKey]=JSON.parse(JSON.stringify(data)); pushAsg(); return Promise.resolve(); },
     stop:()=>{},
@@ -1136,7 +1140,8 @@ function renderReports(){
   if(!names.length){ box.innerHTML=`<div class="none">등록된 봉사자가 없습니다.</div>`; return; }
   const done=names.filter(n=>data[n]).length;
   const rowHtml=(n)=>{ const r=data[n];
-    return r ? `<div class="rprow"><span class="rpn">${esc(n)}</span><span class="rpv">시간 <b>${esc(r.hours||"-")}</b> · 연구 <b>${esc(String(r.studies??"")||"-")}</b></span></div>`
+    const del = state.isAdmin ? `<button class="rpx" data-rn="${esc(n)}">×</button>` : "";
+    return r ? `<div class="rprow"><span class="rpn">${esc(n)}</span><span class="rpv">시간 <b>${esc(r.hours||"-")}</b> · 연구 <b>${esc(String(r.studies??"")||"-")}</b></span>${del}</div>`
              : `<div class="rprow miss"><span class="rpn">${esc(n)}</span><span class="rpv">미제출</span></div>`; };
   let body="";
   if(state.rpGroupView){
@@ -1153,6 +1158,13 @@ function renderReports(){
 }
 $("rpvName").onclick=()=>{ state.rpGroupView=false; renderReports(); };
 $("rpvGrp").onclick=()=>{ state.rpGroupView=true; renderReports(); };
+$("rpAdminList").addEventListener("click",async e=>{
+  const x=e.target.closest(".rpx"); if(!x||!state.isAdmin) return;
+  const name=x.dataset.rn, month=state.adminRptMonth;
+  if(!await appConfirm(`${name} 님의 ${monthLabel(month)} 봉사보고를 삭제할까요?`,{yesLabel:"삭제",requirePin:true})) return;
+  if(state.reports&&state.reports[month]){ delete state.reports[month][name]; renderReports(); }
+  try{ await backend.deleteReport(month,name); }catch(err){ console.error(err); }
+});
 $("permGrid").addEventListener("change",async e=>{
   const cb=e.target.closest("input[data-perm]"); if(!cb) return;
   const perms={};
