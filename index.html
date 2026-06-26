@@ -261,10 +261,13 @@
   .von.on{background:var(--primary);border-color:var(--primary);color:#fff;}
   .rpgh{font-size:13px;font-weight:800;color:var(--primary-d);margin:12px 0 6px;padding-bottom:3px;border-bottom:2px solid var(--primary-soft);display:flex;justify-content:space-between;align-items:baseline;}
   .rpgh span{font-size:12px;font-weight:700;color:var(--muted);}
-  .rfilter{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
-  .rfilter span{font-size:13px;font-weight:600;color:var(--muted);}
-  .rfilter select{flex:1;}
+  .rfilter{display:flex;align-items:center;gap:8px;margin-bottom:10px;background:var(--primary-soft);border:1px solid var(--primary);border-radius:8px;padding:7px 10px;}
+  .rfilter span{font-size:13px;font-weight:700;color:var(--primary-d);flex-shrink:0;}
+  .rfilter select{flex:1;font-family:inherit;font-size:13px;font-weight:600;padding:5px 6px;border-radius:6px;border:1px solid var(--line);background:var(--surface);}
   .grphd{font-size:13px;font-weight:800;color:var(--primary-d);margin:10px 0 5px;}
+  .permgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .permopt{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:9px 11px;cursor:pointer;}
+  .permopt input{width:17px;height:17px;accent-color:var(--primary);}
   hr{border:none;border-top:1px solid var(--line);margin:18px 0 2px;}
   .notice{background:var(--surface-2);border:1px solid var(--line);border-left:3px solid var(--primary);
     border-radius:8px;padding:12px 14px;margin-bottom:16px;text-align:left;max-height:200px;overflow-y:auto;}
@@ -363,11 +366,13 @@
   <div class="card wide">
     <div class="ahead"><h2 id="adminTitle">관리자</h2><button class="linklike2" id="adClose" style="color:var(--primary)">닫기</button></div>
     <p class="ghint">여기에 등록된 이름으로만 로그인할 수 있습니다.</p>
+    <div class="subArea" data-area="notice">
     <label>공지사항 (로그인 화면에 표시)</label>
     <textarea id="noticeInput" placeholder="예) 이번 주 토요일 봉사는 오전 9시에 모입니다."></textarea>
     <button class="addbig" id="noticeSave" style="margin-top:8px">공지 저장</button>
     <div class="err" id="noticeMsg"></div>
     <hr/>
+    </div>
     <div class="mainOnly">
     <label>봉사 요일 설정 (신청 가능한 요일)</label>
     <p class="ghint" style="margin:0 0 8px">켜진 요일만 달력에서 신청할 수 있어요. 누르면 바로 저장됩니다.</p>
@@ -375,6 +380,7 @@
     <div class="err" id="wdMsg"></div>
     <hr/>
     </div>
+    <div class="subArea" data-area="notes">
     <label>행사 메모 표시</label>
     <p class="ghint" style="margin:0 0 8px">특정 날짜에 문구를 적으면 달력에 표시돼요. (예: 특별 집회)</p>
     <div class="noteform">
@@ -385,6 +391,8 @@
     <div class="err" id="noteMsg"></div>
     <div class="notelist" id="noteList"></div>
     <hr/>
+    </div>
+    <div class="subArea" data-area="asg">
     <label>전시대 봉사 배정</label>
     <p class="ghint" style="margin:0 0 8px">날짜를 고르고 장소별 그룹 수를 정한 뒤 자동 배정하세요. (2명씩 · 3그룹=20분 · 4그룹=15분)</p>
     <div class="asg-form">
@@ -406,6 +414,7 @@
     <p class="ghint" id="asgSwapHint" style="margin:8px 0 0;display:none">💡 이름을 두 명 차례로 누르면 서로 자리가 바뀝니다.</p>
     <div class="asg-result" id="asgResult"></div>
     <button class="addbig" id="asgShare" style="display:none;margin-top:10px;background:#FEE500;color:#3A1D1D">카카오톡 등으로 공유</button>
+    </div>
     <div class="mainOnly">
     <hr/>
     <label>신청 취소 관리</label>
@@ -417,6 +426,7 @@
     </div>
     <div class="rplist" id="cancelList"></div>
     </div>
+    <div class="subArea" data-area="report">
     <hr/>
     <label>봉사보고 확인</label>
     <div class="rpnav">
@@ -426,6 +436,7 @@
     </div>
     <div class="vtog"><button class="von on" id="rpvName">이름순</button><button class="von" id="rpvGrp">집단별</button></div>
     <div class="rplist" id="rpAdminList"></div>
+    </div>
     <div class="mainOnly">
     <hr/>
     <label>봉사자 추가</label>
@@ -435,8 +446,19 @@
       <button id="amAdd">추가</button>
     </div>
     <div class="err" id="amErr"></div>
-    <div class="rfilter"><span>보기</span><select id="rosterFilter"><option value="all">전체 (가나다)</option><option value="grp">집단순</option><option value="사랑">사랑</option><option value="기쁨">기쁨</option><option value="평화">평화</option><option value="온화">온화</option><option value="친절">친절</option><option value="none">미지정</option></select></div>
+    <div class="rfilter"><span>집단 보기</span><select id="rosterFilter"><option value="all">전체 (가나다)</option><option value="grp">집단순</option><option value="사랑">사랑</option><option value="기쁨">기쁨</option><option value="평화">평화</option><option value="온화">온화</option><option value="친절">친절</option><option value="none">미지정</option></select></div>
     <div class="mlist" id="mlist"></div>
+    </div>
+    <div class="mainOnly">
+    <hr/>
+    <label>부관리자 허용 영역</label>
+    <p class="ghint" style="margin:0 0 8px">체크한 영역만 부관리자가 사용할 수 있어요. (명단·요일·신청취소·비밀번호는 메인 관리자 전용)</p>
+    <div class="permgrid" id="permGrid">
+      <label class="permopt"><input type="checkbox" data-perm="notice" /> 공지사항</label>
+      <label class="permopt"><input type="checkbox" data-perm="notes" /> 행사 메모</label>
+      <label class="permopt"><input type="checkbox" data-perm="asg" /> 전시대 배정</label>
+      <label class="permopt"><input type="checkbox" data-perm="report" /> 봉사보고 확인</label>
+    </div>
     </div>
     <div class="mainOnly">
     <hr/>
@@ -784,7 +806,8 @@ $("ubAdmin").onclick=()=>{ if(state.isAdmin||isSubAdmin()) openAdminPanel(); };
 function memberOf(name){ return (state.roster.members||[]).find(m=>m.name===name); }
 function isSubAdmin(){ return !!(state.me && (memberOf(state.me.name)||{}).sub); }
 function isAdminView(){ return state.isAdmin || isSubAdmin(); }
-function metaDoc(over){return Object.assign({members:state.roster.members||[],notice:state.roster.notice||"",activeDays:activeDays(),dayNotes:state.roster.dayNotes||{}},over||{});}
+function subPerms(){ const p=(state.roster&&state.roster.subPerms)||{}; return {notice:p.notice!==false, notes:p.notes!==false, asg:p.asg!==false, report:p.report!==false}; }
+function metaDoc(over){return Object.assign({members:state.roster.members||[],notice:state.roster.notice||"",activeDays:activeDays(),dayNotes:state.roster.dayNotes||{},subPerms:state.roster.subPerms||{}},over||{});}
 function updateLoginNotice(){
   const n=(state.roster.notice||"").trim();
   if(n){$("loginNoticeText").textContent=n;$("loginNotice").style.display="";}
@@ -795,6 +818,9 @@ function openAdminPanel(){
   const main=state.isAdmin;
   $("adminTitle").textContent = main ? "관리자" : "부관리자";
   document.querySelectorAll(".mainOnly").forEach(el=>{ el.style.display = main ? "" : "none"; });
+  const perms=subPerms();
+  document.querySelectorAll(".subArea").forEach(el=>{ el.style.display = main ? "" : (perms[el.dataset.area]?"":"none"); });
+  if($("permGrid")) $("permGrid").querySelectorAll("input[data-perm]").forEach(x=>x.checked=perms[x.dataset.perm]);
   $("amName").value="";$("amErr").textContent="";$("hashIn").value="";$("hashOut").style.display="none";
   $("noticeInput").value=state.roster.notice||"";$("noticeMsg").textContent="";
   state.adminRptMonth=reportTargetMonth();
@@ -1127,6 +1153,12 @@ function renderReports(){
 }
 $("rpvName").onclick=()=>{ state.rpGroupView=false; renderReports(); };
 $("rpvGrp").onclick=()=>{ state.rpGroupView=true; renderReports(); };
+$("permGrid").addEventListener("change",async e=>{
+  const cb=e.target.closest("input[data-perm]"); if(!cb) return;
+  const perms={};
+  $("permGrid").querySelectorAll("input[data-perm]").forEach(x=>perms[x.dataset.perm]=x.checked);
+  try{ await backend.saveRoster(metaDoc({subPerms:perms})); }catch(err){console.error(err);}
+});
 $("noticeSave").onclick=async()=>{
   const text=$("noticeInput").value.trim();
   $("noticeMsg").style.color="var(--rose)";$("noticeMsg").textContent="";
