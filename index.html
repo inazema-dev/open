@@ -393,7 +393,7 @@
     <textarea id="noticeInput" placeholder="예) 이번 주 토요일 봉사는 오전 9시에 모입니다."></textarea>
     <button class="addbig" id="noticeSave" style="margin-top:8px">공지 저장</button>
     <div class="err" id="noticeMsg"></div>
-    <label style="margin-top:14px">공지 이미지 (메인 화면 · 최대 2장)</label>
+    <label style="margin-top:14px">공지 이미지 (메인 화면 · 최대 4장)</label>
     <p class="ghint" style="margin:0 0 8px">달력 아래에 표시됩니다. 업로드하면 자동 압축되어 저장돼요.</p>
     <div class="niadmin" id="niAdmin"></div>
     <input type="file" id="niFile" accept="image/*" style="display:none" />
@@ -1257,7 +1257,7 @@ function renderNiAdmin(){
   const box=$("niAdmin"); if(!box) return;
   const imgs=(state.notices&&state.notices.imgs)||[];
   let html=imgs.map((src,i)=>`<div class="nithumb"><img src="${src}" alt="" /><button class="nidel" data-i="${i}">×</button></div>`).join("");
-  if(imgs.length<2) html+=`<button class="niadd" id="niAddBtn">＋ 이미지 추가</button>`;
+  if(imgs.length<4) html+=`<button class="niadd" id="niAddBtn">＋ 이미지 추가</button>`;
   box.innerHTML=html;
 }
 $("niAdmin").addEventListener("click",async e=>{
@@ -1270,10 +1270,12 @@ $("niAdmin").addEventListener("click",async e=>{
 $("niFile").addEventListener("change",async e=>{
   const f=e.target.files&&e.target.files[0]; if(!f) return;
   const imgs=((state.notices&&state.notices.imgs)||[]).slice();
-  if(imgs.length>=2){ $("niMsg").style.color="var(--rose)"; $("niMsg").textContent="이미지는 최대 2장까지예요."; return; }
+  if(imgs.length>=4){ $("niMsg").style.color="var(--rose)"; $("niMsg").textContent="이미지는 최대 4장까지예요."; return; }
   $("niMsg").style.color="var(--muted)"; $("niMsg").textContent="이미지 처리 중...";
   try{
-    const out=await compressImage(f,1000,430000);
+    const out=await compressImage(f,1000,235000);
+    const total=imgs.reduce((a,x)=>a+x.length,0)+out.length;
+    if(total>980000){ $("niMsg").style.color="var(--rose)"; $("niMsg").textContent="전체 용량이 커서 저장할 수 없어요. 기존 이미지를 삭제하고 다시 시도해주세요."; return; }
     imgs.push(out);
     await backend.saveNotices(imgs);
     $("niMsg").textContent="";
