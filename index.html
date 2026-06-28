@@ -277,6 +277,14 @@
   .rtag.sx{background:var(--primary-soft);color:var(--primary-d);}
   .rtag.gp{background:#ede7fa;color:#5a3da8;}
   .rtag.rl{background:#e0f2ec;color:#1f8a70;}
+  .noticeimgs{display:flex;flex-direction:column;gap:10px;margin-top:14px;}
+  .noticeimgs:empty{display:none;}
+  .ni-img{width:100%;border-radius:12px;border:1px solid var(--line);display:block;}
+  .niadmin{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start;}
+  .nithumb{position:relative;width:96px;height:96px;border-radius:10px;overflow:hidden;border:1px solid var(--line);flex-shrink:0;}
+  .nithumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .nidel{position:absolute;top:3px;right:3px;width:22px;height:22px;border:none;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:15px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .niadd{width:96px;height:96px;border:1.5px dashed var(--primary);border-radius:10px;background:var(--primary-soft);color:var(--primary-d);font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;flex-shrink:0;}
   .permgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   .permopt{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:9px 11px;cursor:pointer;}
   .permopt input{width:17px;height:17px;accent-color:var(--primary);}
@@ -385,6 +393,11 @@
     <textarea id="noticeInput" placeholder="예) 이번 주 토요일 봉사는 오전 9시에 모입니다."></textarea>
     <button class="addbig" id="noticeSave" style="margin-top:8px">공지 저장</button>
     <div class="err" id="noticeMsg"></div>
+    <label style="margin-top:14px">공지 이미지 (메인 화면 · 최대 2장)</label>
+    <p class="ghint" style="margin:0 0 8px">달력 아래에 표시됩니다. 업로드하면 자동 압축되어 저장돼요.</p>
+    <div class="niadmin" id="niAdmin"></div>
+    <input type="file" id="niFile" accept="image/*" style="display:none" />
+    <div class="err" id="niMsg"></div>
     <hr/>
     </div>
     <div class="mainOnly">
@@ -526,6 +539,7 @@
     </div>
     <div class="cal" id="cal"></div>
     <div class="daypanel" id="dayPanel"></div>
+    <div class="noticeimgs" id="noticeImgs"></div>
     <div class="foot"></div>
   </div>
 </div>
@@ -655,7 +669,7 @@ function monthGrid(ref){
 const state={
   monthRef:new Date(), dateData:{}, fixedData:{},
   roster:{members:[],notice:"",activeDays:DEFAULT_ACTIVE.slice(),dayNotes:{}},
-  reports:{}, assignments:{}, asgSel:null, rpGroupView:false, rosterFilter:"all", rosterSex:"all", rosterRole:"all", reportsReady:false, reportChecked:false, reportPresent:false, reportMonth:null, adminRptMonth:null, adminCancelMonth:null,
+  reports:{}, assignments:{}, notices:{imgs:[]}, asgSel:null, rpGroupView:false, rosterFilter:"all", rosterSex:"all", rosterRole:"all", reportsReady:false, reportChecked:false, reportPresent:false, reportMonth:null, adminRptMonth:null, adminCancelMonth:null,
   me:null, isAdmin:false, selectedDay:null,
   mode:"demo", openDayKey:null, openDayWd:null, add:{dateKey:null,weekday:null,kind:"once"},
 };
@@ -720,11 +734,19 @@ function makeLive(fs,db){
     });
   }
   const saveAssign=(dateKey,data)=>setDoc(doc(db,"meta","assignments"),{[dateKey]:data},{merge:true});
+  function subscribeNotices(onChange){
+    return onSnapshot(doc(db,"meta","notices"),snap=>{
+      const d=snap.exists()?(snap.data()||{}):{};
+      state.notices={imgs:Array.isArray(d.imgs)?d.imgs:[]};
+      onChange&&onChange();
+    });
+  }
+  const saveNotices=(imgs)=>setDoc(doc(db,"meta","notices"),{imgs});
   async function add(coll,id,e){const r=doc(db,coll,id);const c=await getDoc(r);
     if(c.exists())await updateDoc(r,{signups:arrayUnion(e)});else await setDoc(r,{signups:[e]});}
   async function rem(coll,id,e){const r=doc(db,coll,id);const c=await getDoc(r);if(!c.exists())return;
     await setDoc(r,{signups:(c.data().signups||[]).filter(s=>!(s.name===e.name&&s.ts===e.ts))});}
-  return {kind:"live",subscribeMonth,subscribeRoster,saveRoster,subscribeReports,saveReport,deleteReport,subscribeAssign,saveAssign,stop:clearMonth,
+  return {kind:"live",subscribeMonth,subscribeRoster,saveRoster,subscribeReports,saveReport,deleteReport,subscribeAssign,saveAssign,subscribeNotices,saveNotices,stop:clearMonth,
     addDate:(k,e)=>add("dates",k,e),removeDate:(k,e)=>rem("dates",k,e),
     addFixed:(w,e)=>add("recurring",String(w),e),removeFixed:(w,e)=>rem("recurring",String(w),e)};
 }
@@ -736,11 +758,13 @@ function makeDemo(){
   let roster={members:[{name:"김봉사",sex:"남",group:"사랑",roles:["장로"]},{name:"이도움",sex:"여",sub:true,group:"기쁨"},{name:"박나눔",sex:"남",group:"평화",roles:["봉종","특파"]},{name:"최주말",sex:"여"}],notice:"이번 주 토요일 봉사는 오전 9시에 모입니다.\n우천 시 실내에서 진행합니다.",activeDays:DEFAULT_ACTIVE.slice(),dayNotes:{}};
   let reports={};
   let assignments={};
-  let cbM=()=>{},cbR=()=>{},cbRep=()=>{},cbAsg=()=>{};
+  let noticeImgs=[];
+  let cbM=()=>{},cbR=()=>{},cbRep=()=>{},cbAsg=()=>{},cbNo=()=>{};
   const pushM=()=>{state.dateData=JSON.parse(JSON.stringify(dates));state.fixedData=JSON.parse(JSON.stringify(fixed));cbM();};
   const pushR=()=>{state.roster=JSON.parse(JSON.stringify(roster));cbR();};
   const pushRep=()=>{state.reports=JSON.parse(JSON.stringify(reports));cbRep();};
   const pushAsg=()=>{state.assignments=JSON.parse(JSON.stringify(assignments));cbAsg();};
+  const pushNo=()=>{state.notices={imgs:noticeImgs.slice()};cbNo();};
   return {kind:"demo",
     subscribeMonth:(_r,fn)=>{cbM=fn;pushM();},
     subscribeRoster:(fn)=>{cbR=fn;pushR();return ()=>{};},
@@ -750,6 +774,8 @@ function makeDemo(){
     deleteReport:(month,name)=>{ if(reports[month]) delete reports[month][name]; pushRep(); return Promise.resolve(); },
     subscribeAssign:(fn)=>{cbAsg=fn;pushAsg();return ()=>{};},
     saveAssign:(dateKey,data)=>{ assignments[dateKey]=JSON.parse(JSON.stringify(data)); pushAsg(); return Promise.resolve(); },
+    subscribeNotices:(fn)=>{cbNo=fn;pushNo();return ()=>{};},
+    saveNotices:(imgs)=>{ noticeImgs=imgs.slice(); pushNo(); return Promise.resolve(); },
     stop:()=>{},
     addDate:(key,e)=>{(dates[key] ||= []).push(e);pushM();},
     removeDate:(key,e)=>{dates[key]=(dates[key]||[]).filter(s=>!(s.name===e.name&&s.ts===e.ts));pushM();},
@@ -785,7 +811,7 @@ function enterApp(){
   backend.subscribeMonth(state.monthRef,render);
   const tw=new Date().getDay();
   state.selectedDay = isActiveWd(tw) ? {key:todayKey, wd:tw} : null;
-  render();
+  render(); renderNoticeImgs();
   state.reportChecked=false; checkReportPopup();
 }
 function doLoginMember(){
@@ -854,7 +880,7 @@ function openAdminPanel(){
     render();
     if(isAdminView() && $("admin").classList.contains("on")){ renderCancelMgr(); renderAssignForm(); }
   });
-  renderRoster(); renderReports(); renderCancelMgr(); renderAssignForm();
+  renderRoster(); renderReports(); renderCancelMgr(); renderAssignForm(); renderNiAdmin();
 }
 /* ---------------- 전시대 봉사 배정 ---------------- */
 function hmToMin(hm){const [h,m]=(hm||"10:00").split(":").map(Number);return h*60+m;}
@@ -1198,6 +1224,61 @@ $("permGrid").addEventListener("change",async e=>{
   $("permGrid").querySelectorAll("input[data-perm]").forEach(x=>perms[x.dataset.perm]=x.checked);
   try{ await backend.saveRoster(metaDoc({subPerms:perms})); }catch(err){console.error(err);}
 });
+/* ---------------- 공지 이미지 ---------------- */
+function compressImage(file,maxDim,budget){
+  return new Promise((resolve,reject)=>{
+    const fr=new FileReader();
+    fr.onerror=()=>reject(new Error("read"));
+    fr.onload=()=>{
+      const img=new Image();
+      img.onerror=()=>reject(new Error("img"));
+      img.onload=()=>{
+        let w=img.width,h=img.height;
+        if(Math.max(w,h)>maxDim){ const s=maxDim/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s); }
+        const c=document.createElement("canvas"); c.width=w; c.height=h;
+        c.getContext("2d").drawImage(img,0,0,w,h);
+        let q=0.82, out=c.toDataURL("image/jpeg",q);
+        while(out.length>budget && q>0.4){ q-=0.1; out=c.toDataURL("image/jpeg",q); }
+        let guard=0;
+        while(out.length>budget && guard<5){ w=Math.round(w*0.85); h=Math.round(h*0.85); c.width=w; c.height=h; c.getContext("2d").drawImage(img,0,0,w,h); out=c.toDataURL("image/jpeg",0.7); guard++; }
+        resolve(out);
+      };
+      img.src=fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+function renderNoticeImgs(){
+  const box=$("noticeImgs"); if(!box) return;
+  const imgs=(state.notices&&state.notices.imgs)||[];
+  box.innerHTML=imgs.map(src=>`<img class="ni-img" src="${src}" alt="공지 이미지" />`).join("");
+}
+function renderNiAdmin(){
+  const box=$("niAdmin"); if(!box) return;
+  const imgs=(state.notices&&state.notices.imgs)||[];
+  let html=imgs.map((src,i)=>`<div class="nithumb"><img src="${src}" alt="" /><button class="nidel" data-i="${i}">×</button></div>`).join("");
+  if(imgs.length<2) html+=`<button class="niadd" id="niAddBtn">＋ 이미지 추가</button>`;
+  box.innerHTML=html;
+}
+$("niAdmin").addEventListener("click",async e=>{
+  const add=e.target.closest("#niAddBtn");
+  if(add){ $("niFile").value=""; $("niFile").click(); return; }
+  const del=e.target.closest(".nidel");
+  if(del){ const i=+del.dataset.i; const imgs=((state.notices&&state.notices.imgs)||[]).slice(); imgs.splice(i,1);
+    try{ await backend.saveNotices(imgs); }catch(err){console.error(err);} return; }
+});
+$("niFile").addEventListener("change",async e=>{
+  const f=e.target.files&&e.target.files[0]; if(!f) return;
+  const imgs=((state.notices&&state.notices.imgs)||[]).slice();
+  if(imgs.length>=2){ $("niMsg").style.color="var(--rose)"; $("niMsg").textContent="이미지는 최대 2장까지예요."; return; }
+  $("niMsg").style.color="var(--muted)"; $("niMsg").textContent="이미지 처리 중...";
+  try{
+    const out=await compressImage(f,1000,430000);
+    imgs.push(out);
+    await backend.saveNotices(imgs);
+    $("niMsg").textContent="";
+  }catch(err){ console.error(err); $("niMsg").style.color="var(--rose)"; $("niMsg").textContent="이미지 처리 실패. 다른 파일로 시도해주세요."; }
+});
 $("noticeSave").onclick=async()=>{
   const text=$("noticeInput").value.trim();
   $("noticeMsg").style.color="var(--rose)";$("noticeMsg").textContent="";
@@ -1508,6 +1589,10 @@ $("today").onclick=()=>{state.monthRef=new Date();state.selectedDay=null;backend
   backend.subscribeAssign(()=>{
     render();
     if(isAdminView() && $("admin").classList.contains("on")) renderAssign();
+  });
+  backend.subscribeNotices(()=>{
+    renderNoticeImgs();
+    if($("admin").classList.contains("on")) renderNiAdmin();
   });
 })();
 </script>
